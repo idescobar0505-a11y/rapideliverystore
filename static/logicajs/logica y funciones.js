@@ -1443,6 +1443,10 @@ function sendServiceOrder() {
 // SISTEMA DE ENVÍO BLINDADO (ANTI-ERRORES)
 // =======================================================
 
+// =======================================================
+// SISTEMA DE ENVÍO BLINDADO (CONEXIÓN LOCAL)
+// =======================================================
+
 window.sendOrder = async function() {
     try {
         // 1. Validaciones Básicas
@@ -1503,13 +1507,12 @@ window.sendOrder = async function() {
         }
 
         // =======================================================
-        // 7. CONEXIÓN AL SERVIDOR (AQUÍ ESTÁ LA MAGIA)
+        // 7. CONEXIÓN AL SERVIDOR LOCAL (EL TRUCO DE LA RUTA RELATIVA)
+        // Usamos "/api/pedidos" para que hable con su propio main.py
         // =======================================================
-        const API_URL = "https://raiderelporgreso.onrender.com"; // <-- Asegúrate que sea tu URL real
-        
-        console.log("Enviando orden a Render:", orderData);
+        console.log("Enviando orden a mi propio servidor (main.py local)...", orderData);
 
-        const response = await fetch(`${API_URL}/api/pedidos`, {
+        const response = await fetch(`/api/pedidos`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -1532,17 +1535,14 @@ window.sendOrder = async function() {
                 alert("¡Orden enviada con éxito al Rider!");
             }
         } else {
-            // Si el servidor (Render/Python) rechaza la orden, mostramos el error exacto
-            alert("Error del servidor Render: " + JSON.stringify(data));
+            alert("Error del servidor: " + JSON.stringify(data));
             if (btnConfirm) btnConfirm.innerHTML = originalText;
         }
 
     } catch (error) {
-        // Si se rompe el Internet o la URL está mal escrita
         console.error("Error Catastrófico:", error);
         alert("Fallo de conexión crítico. Revisa si el servidor en Render está encendido. Error: " + error.message);
     } finally {
-        // Siempre reactivar el botón al final
         const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
         if (btnConfirm) {
             btnConfirm.parentElement.disabled = false;
@@ -1550,46 +1550,114 @@ window.sendOrder = async function() {
     }
 };
 
+// =======================================================
+// LÓGICA DEL MAPA Y RASTREO EN VIVO (TRACKING)
+// =======================================================
+let trackingInterval = null;
+let trackingMap = null;
+
+window.startTrackingView = function(orderId, orderData) {
+    // Esconder todas las vistas y mostrar solo el Rastreador
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    
+    const trackingView = document.getElementById('view-tracking');
+    if (trackingView) {
+        trackingView.style.display = 'flex';
+        trackingView.classList.add('active');
+    }
+
+    // Llenar datos en pantalla (compatible con ambas versiones de tu HTML)
+    if(document.getElementById('track-order-id')) document.getElementById('track-order-id').innerText = orderId;
+    if(document.getElementById('track-store-name')) document.getElementById('track-store-name').innerText = orderData.tienda;
+    if(document.getElementById('track-total')) document.getElementById('track-total').innerText = 'L ' + orderData.total.toFixed(2);
+    
+    if(document.getElementById('tracking-store')) document.getElementById('tracking-store').innerText = orderData.tienda;
+    if(document.getElementById('tracking-products')) document.getElementById('tracking-products').innerText = orderData.productos;
+    if(document.getElementById('tracking-total')) document.getElementById('tracking-total').innerText = 'L ' + orderData.total.toFixed(2);
+    if(document.getElementById('tracking-address')) document.getElementById('tracking-address').innerText = orderData.direccion;
+
+    // Dibujar el Mapa (Si existe el contenedor)
+    if (!trackingMap && document.getElementById('tracking-map')) {
+        trackingMap = L.map('tracking-map', {zoomControl: false}).setView([orderData.lat, orderData.lon], 15);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(trackingMap);
+        
+        // Marcador del Cliente
+        const clientIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#3b82f6; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
+        L.marker([orderData.lat, orderData.lon], {icon: clientIcon}).addTo(trackingMap);
+
+        // Buscar coordenadas de la tienda para pintar la ruta
+        let storeLat = 15.4006; let storeLon = -87.8097; 
+        if (typeof DB !== 'undefined' && DB[orderData.tienda]) {
+            storeLat = DB[orderData.tienda].lat || storeLat;
+            storeLon = DB[orderData.tienda].lon || storeLon;
+        }
+        
+        // Marcador del Comercio
+        const storeIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#1f2937; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
+        L.marker([storeLat, storeLon], {icon: storeIcon}).addTo(trackingMap);
+
+        // Ajustar cámara
+        const bounds = L.latLngBounds([[orderData.lat, orderData.lon], [storeLat, storeLon]]);
+        trackingMap.fitBounds(bounds, {padding: [40, 40]});
+    }
+
+    // Iniciar el radar para preguntarle al servidor (main.py local) cada 4 segundos
+    if (trackingInterval) clearInterval(trackingInterval);
+    trackingInterval = setInterval(() => pollOrderStatus(orderId), 4000);
+};
+
+// 3. CONSULTAR AL SERVIDOR LOCAL (/api/pedidos/{id})
+async function pollOrderStatus(orderId) {
+    try {
+        // Usamos ruta relativa: llama a su propio servidor donde está alojado
+        const response = await fetch(`/api/pedidos/${orderId}`);
+        const resData = await response.json();
+        
+        if (resData.status === 'success') {
+            updateTrackingUI(resData.data);
+        }
+    } catch (e) { 
+        console.error("Error consultando estado en el radar", e); 
+    }
+}
+
 // 4. CAMBIAR LA PANTALLA SEGÚN LO QUE HAGA EL RIDER
 function updateTrackingUI(order) {
-    const iconBox = document.getElementById('track-status-icon');
-    const title = document.getElementById('track-status-title');
-    const desc = document.getElementById('track-status-desc');
-    const riderBox = document.getElementById('track-rider-box');
+    const iconBox = document.getElementById('tracking-status-icon') || document.getElementById('track-status-icon');
+    const title = document.getElementById('tracking-status-title') || document.getElementById('track-status-title');
+    const desc = document.getElementById('tracking-status-desc') || document.getElementById('track-status-desc');
+    const riderBox = document.getElementById('tracking-rider-info') || document.getElementById('track-rider-box');
+
+    if(!title) return; // Protección por si no cargó la UI
 
     // MÁQUINA DE ESTADOS REACCIONANDO AL RIDER
     if (order.status === 'pendiente') {
-        iconBox.innerHTML = '<i class="fas fa-search fa-spin"></i>';
+        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-search fa-spin"></i>'; iconBox.style.background = "#eff6ff"; iconBox.style.color = "#3b82f6"; }
         title.innerText = "Buscando Rider...";
-        desc.innerText = "Esperando que un conductor acepte";
-        iconBox.style.background = "#eff6ff"; iconBox.style.color = "#3b82f6";
+        if(desc) desc.innerText = "Esperando que un conductor acepte";
     } 
     else if (order.status === 'yendo_al_local') {
-        iconBox.innerHTML = '<i class="fas fa-motorcycle"></i>';
+        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-motorcycle"></i>'; iconBox.style.background = "var(--rapi-orange)"; iconBox.style.color = "white"; }
         title.innerText = "¡Rider Asignado!";
-        desc.innerText = "Conductor va rumbo al comercio";
-        iconBox.style.background = "var(--rapi-orange)"; iconBox.style.color = "white";
-        riderBox.style.display = 'flex';
+        if(desc) desc.innerText = "Conductor va rumbo al comercio";
+        if(riderBox) riderBox.style.display = 'flex';
     }
     else if (order.status === 'en_local' || order.status === 'preparando') {
-        iconBox.innerHTML = '<i class="fas fa-store"></i>';
+        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-store"></i>'; iconBox.style.background = "#f59e0b"; iconBox.style.color = "white"; }
         title.innerText = "En el Comercio";
-        desc.innerText = "Rider está recogiendo tu comida";
-        iconBox.style.background = "#f59e0b"; iconBox.style.color = "white";
-        riderBox.style.display = 'flex';
+        if(desc) desc.innerText = "Rider está recogiendo tu comida";
+        if(riderBox) riderBox.style.display = 'flex';
     }
     else if (order.status === 'en_camino') {
-        iconBox.innerHTML = '<i class="fas fa-map-marked-alt"></i>';
+        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-map-marked-alt"></i>'; iconBox.style.background = "#10b981"; iconBox.style.color = "white"; }
         title.innerText = "¡En Camino!";
-        desc.innerText = "El rider viaja hacia tu dirección";
-        iconBox.style.background = "#10b981"; iconBox.style.color = "white";
-        riderBox.style.display = 'flex';
+        if(desc) desc.innerText = "El rider viaja hacia tu dirección";
+        if(riderBox) riderBox.style.display = 'flex';
     }
     else if (order.status === 'entregado' || order.status === 'completado') {
-        iconBox.innerHTML = '<i class="fas fa-check-circle"></i>';
+        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-check-circle"></i>'; iconBox.style.background = "#059669"; iconBox.style.color = "white"; }
         title.innerText = "¡Entregado!";
-        desc.innerText = "¡Gracias por pedir con nosotros!";
-        iconBox.style.background = "#059669"; iconBox.style.color = "white";
+        if(desc) desc.innerText = "¡Gracias por pedir con nosotros!";
         clearInterval(trackingInterval); // Detener el radar
     }
 }
