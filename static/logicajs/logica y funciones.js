@@ -1435,249 +1435,124 @@ function sendServiceOrder() {
     window.open(`https://wa.me/50493655523?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-    // =======================================================
-// NUEVO SISTEMA DE ENVÍO Y RASTREO (CONEXIÓN CON RIDER PRO)
-// =======================================================
+/* --- NUEVA VERSIÓN: ENVIAR PEDIDO A RENDER (SIN WHATSAPP Y CON TRACKING) --- */
+async function sendOrder() {
+    if (cart.length === 0) return showProError("Tu carrito está vacío 🛒", []);
+    if (!selectedSector) return showProError("Selecciona tu colonia 📍", ['sector-input']);
+    
+    const dirInput = document.getElementById('address-input');
+    const dir = dirInput ? dirInput.value : "";
+    if (!dir || dir.length < 5) return showProError("Escribe una dirección detallada 🏠", ['address-input']);
 
-// =======================================================
-// SISTEMA DE ENVÍO BLINDADO (ANTI-ERRORES)
-// =======================================================
+    // 1. OBTENER DATOS DEL COMERCIO Y PRODUCTOS
+    const commerceName = cart.length > 0 ? cart[0].s : 'Pedido Rapi';
 
-// =======================================================
-// SISTEMA DE ENVÍO BLINDADO (CONEXIÓN LOCAL)
-// =======================================================
+    const groups = {};
+    cart.forEach(item => {
+        if (!groups[item.n]) groups[item.n] = { ...item, count: 0 };
+        groups[item.n].count++;
+    });
 
-window.sendOrder = async function() {
+    let productosTexto = Object.keys(groups).map(name => `${groups[name].count}x ${name}`).join(', ');
+    
+    let payDetails = payMethod;
+    if (payMethod === 'Efectivo') {
+        const cashInput = document.getElementById('cash-input');
+        const billete = (cashInput && cashInput.value) ? cashInput.value : 'Exacto';
+        payDetails += ` (L ${billete})`;
+    }
+
+    const totalLabel = document.getElementById('lbl-total');
+    const totalTxt = totalLabel ? totalLabel.innerText : "L 0.00";
+    const totalNum = parseFloat(totalTxt.replace('L ', ''));
+
+    const userName = currentUser ? currentUser.name : 'Invitado';
+    
+    const phoneInput = document.getElementById('phone-input');
+    const phone = (phoneInput && phoneInput.value) ? phoneInput.value : '00000000';
+
+    // CORRECCIÓN: Usar las variables globales reales de tu función captureGPS()
+    const lat = window.currentLat || 15.4006; 
+    const lon = window.currentLon || -87.8097;
+
+    // --- GUARDADO LOCAL PARA EL HISTORIAL DEL PERFIL ---
+    const orderData = {
+        date: new Date().toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        fullDate: new Date(),
+        time: new Date().toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' }),
+        total: totalNum,
+        totalStr: totalTxt,
+        itemsSummary: productosTexto, 
+        storeName: commerceName,
+        loc: selectedSector.n,
+        location: selectedSector.n, 
+        fullAddress: dir,
+        method: payMethod,
+        status: 'enviado',
+        userId: currentUser ? currentUser.uid : 'guest'
+    };
+
+    if (Array.isArray(userOrders)) {
+        userOrders.unshift({...orderData}); 
+        if (typeof initLoyalty === "function") initLoyalty();
+    }
+    
+    if (typeof saveOrderToFirebase === "function") {
+        saveOrderToFirebase(orderData).catch(e => console.error(e));
+    }
+
+    // ==============================================================
+    // 2. ENVIAR A LA NUBE Y ABRIR TRACKING
+    // ==============================================================
     try {
-        // 1. Validaciones Básicas
-        if (cart.length === 0) return showProError("Tu carrito está vacío.", []);
-
-        const addrInput = document.getElementById('address-input');
-        const phoneInput = document.getElementById('checkout-phone-input');
-        const coordsInput = document.getElementById('checkout-coords');
-
-        if (!addrInput || !addrInput.value.trim()) return showProError("Ingresa tu dirección exacta.", ['address-input']);
-        if (!phoneInput || !phoneInput.value.trim()) return showProError("Ingresa tu teléfono de contacto.", ['checkout-phone-input']);
-        if (!coordsInput || !coordsInput.value.trim()) return showProError("Por favor presiona el botón de 'Fijar mi ubicación' en el mapa.", ['btn-gps-checkout']);
-
-        // 2. Extracción Segura de Coordenadas (GPS)
-        let lat = 0, lon = 0;
-        try {
-            const coordsSplit = coordsInput.value.split(',');
-            lat = parseFloat(coordsSplit[0].trim());
-            lon = parseFloat(coordsSplit[1].trim());
-            if (isNaN(lat) || isNaN(lon)) throw new Error("GPS corrupto");
-        } catch(e) {
-            return showProError("Error con el GPS. Vuelve a capturar tu ubicación.", ['btn-gps-checkout']);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Enviando orden al local...', text: 'Conectando con los Riders', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
         }
 
-        // 3. Extracción de Tienda y Total en tiempo real (A prueba de fallos)
-        const commerceName = cart[0].s;
-        const itemsSummary = cart.map(item => `${item.q}x ${item.n}`).join(', ');
-        
-        let totalCalculado = 0;
-        cart.forEach(item => { totalCalculado += (item.p * item.q); });
-
-        // 4. Nombre del cliente (Protección contra fallos de Firebase)
-        let nombreCliente = 'Cliente Rapi';
-        if (typeof currentUser !== 'undefined' && currentUser && currentUser.name) {
-            nombreCliente = currentUser.name;
-        }
-
-        // 5. Empaquetar Datos
-        const orderData = {
-            cliente: nombreCliente,
-            direccion: addrInput.value,
-            tienda: commerceName,
-            productos: itemsSummary,
-            total: totalCalculado,
-            telefono: phoneInput.value,
-            referencia: typeof payMethod !== 'undefined' ? payMethod : "Efectivo",
-            lat: lat,
-            lon: lon
-        };
-
-        // 6. Efecto Visual de Carga
-        const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
-        let originalText = "CONFIRMAR ORDEN";
-        if (btnConfirm) {
-            originalText = btnConfirm.innerHTML;
-            btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESANDO...';
-            btnConfirm.parentElement.disabled = true;
-        }
-
-        // =======================================================
-        // 7. CONEXIÓN AL SERVIDOR LOCAL (EL TRUCO DE LA RUTA RELATIVA)
-        // Usamos "/api/pedidos" para que hable con su propio main.py
-        // =======================================================
-        console.log("Enviando orden a mi propio servidor (main.py local)...", orderData);
-
-        const response = await fetch(`/api/pedidos`, {
+        const respuesta = await fetch("https://raiderelporgreso.onrender.com/api/pedidos", {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(orderData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cliente: userName,
+                direccion: selectedSector.n, 
+                referencia: `${dir} [Pago: ${payDetails}]`, 
+                telefono: phone,
+                tienda: commerceName,
+                productos: productosTexto,
+                total: totalNum,
+                lat: lat,
+                lon: lon
+            })
         });
+
+        const data = await respuesta.json();
         
-        const data = await response.json();
-        
-        // 8. Respuesta del Servidor
-        if (response.ok && data.status === 'success') {
-            cart = []; // Vaciar carrito
-            if(typeof updateMiniCart === "function") updateMiniCart();
+        if (data.status === "success") {
+            if (typeof Swal !== 'undefined') Swal.close();
             
-            // Iniciar el Radar de Rastreo
-            if(typeof startTrackingView === "function") {
-                startTrackingView(data.id, orderData);
-            } else {
-                alert("¡Orden enviada con éxito al Rider!");
+            // Cerrar el modal del carrito
+            const cartModal = document.getElementById('cart-modal');
+            if (cartModal) cartModal.classList.remove('active');
+            
+            // CORRECCIÓN: Limpiar carrito usando tus funciones reales
+            cart = [];
+            if (typeof renderCart === 'function') renderCart();
+            if (typeof updateMiniCart === 'function') updateMiniCart();
+
+            // Lanzar Tracking
+            if (typeof TrackingEngine !== 'undefined') {
+                TrackingEngine.start(data.id, lat, lon, commerceName);
             }
+            
         } else {
-            alert("Error del servidor: " + JSON.stringify(data));
-            if (btnConfirm) btnConfirm.innerHTML = originalText;
+            if (typeof Swal !== 'undefined') Swal.fire('Error', 'No se pudo procesar tu orden.', 'error');
         }
 
     } catch (error) {
-        console.error("Error Catastrófico:", error);
-        alert("Fallo de conexión crítico. Revisa si el servidor en Render está encendido. Error: " + error.message);
-    } finally {
-        const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
-        if (btnConfirm) {
-            btnConfirm.parentElement.disabled = false;
-        }
-    }
-};
-
-// =======================================================
-// LÓGICA DEL MAPA Y RASTREO EN VIVO (TRACKING)
-// =======================================================
-let trackingInterval = null;
-let trackingMap = null;
-
-window.startTrackingView = function(orderId, orderData) {
-    // Esconder todas las vistas y mostrar solo el Rastreador
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    
-    const trackingView = document.getElementById('view-tracking');
-    if (trackingView) {
-        trackingView.style.display = 'flex';
-        trackingView.classList.add('active');
-    }
-
-    // Llenar datos en pantalla (compatible con ambas versiones de tu HTML)
-    if(document.getElementById('track-order-id')) document.getElementById('track-order-id').innerText = orderId;
-    if(document.getElementById('track-store-name')) document.getElementById('track-store-name').innerText = orderData.tienda;
-    if(document.getElementById('track-total')) document.getElementById('track-total').innerText = 'L ' + orderData.total.toFixed(2);
-    
-    if(document.getElementById('tracking-store')) document.getElementById('tracking-store').innerText = orderData.tienda;
-    if(document.getElementById('tracking-products')) document.getElementById('tracking-products').innerText = orderData.productos;
-    if(document.getElementById('tracking-total')) document.getElementById('tracking-total').innerText = 'L ' + orderData.total.toFixed(2);
-    if(document.getElementById('tracking-address')) document.getElementById('tracking-address').innerText = orderData.direccion;
-
-    // Dibujar el Mapa (Si existe el contenedor)
-    if (!trackingMap && document.getElementById('tracking-map')) {
-        trackingMap = L.map('tracking-map', {zoomControl: false}).setView([orderData.lat, orderData.lon], 15);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(trackingMap);
-        
-        // Marcador del Cliente
-        const clientIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#3b82f6; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
-        L.marker([orderData.lat, orderData.lon], {icon: clientIcon}).addTo(trackingMap);
-
-        // Buscar coordenadas de la tienda para pintar la ruta
-        let storeLat = 15.4006; let storeLon = -87.8097; 
-        if (typeof DB !== 'undefined' && DB[orderData.tienda]) {
-            storeLat = DB[orderData.tienda].lat || storeLat;
-            storeLon = DB[orderData.tienda].lon || storeLon;
-        }
-        
-        // Marcador del Comercio
-        const storeIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#1f2937; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
-        L.marker([storeLat, storeLon], {icon: storeIcon}).addTo(trackingMap);
-
-        // Ajustar cámara
-        const bounds = L.latLngBounds([[orderData.lat, orderData.lon], [storeLat, storeLon]]);
-        trackingMap.fitBounds(bounds, {padding: [40, 40]});
-    }
-
-    // Iniciar el radar para preguntarle al servidor (main.py local) cada 4 segundos
-    if (trackingInterval) clearInterval(trackingInterval);
-    trackingInterval = setInterval(() => pollOrderStatus(orderId), 4000);
-};
-
-// 3. CONSULTAR AL SERVIDOR LOCAL (/api/pedidos/{id})
-async function pollOrderStatus(orderId) {
-    try {
-        // Usamos ruta relativa: llama a su propio servidor donde está alojado
-        const response = await fetch(`/api/pedidos/${orderId}`);
-        const resData = await response.json();
-        
-        if (resData.status === 'success') {
-            updateTrackingUI(resData.data);
-        }
-    } catch (e) { 
-        console.error("Error consultando estado en el radar", e); 
+        console.error("❌ Error de servidor:", error);
+        if (typeof Swal !== 'undefined') Swal.fire('Sin conexión', 'Error al conectar con los repartidores.', 'error');
     }
 }
-
-// 4. CAMBIAR LA PANTALLA SEGÚN LO QUE HAGA EL RIDER
-function updateTrackingUI(order) {
-    const iconBox = document.getElementById('tracking-status-icon') || document.getElementById('track-status-icon');
-    const title = document.getElementById('tracking-status-title') || document.getElementById('track-status-title');
-    const desc = document.getElementById('tracking-status-desc') || document.getElementById('track-status-desc');
-    const riderBox = document.getElementById('tracking-rider-info') || document.getElementById('track-rider-box');
-
-    if(!title) return; // Protección por si no cargó la UI
-
-    // MÁQUINA DE ESTADOS REACCIONANDO AL RIDER
-    if (order.status === 'pendiente') {
-        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-search fa-spin"></i>'; iconBox.style.background = "#eff6ff"; iconBox.style.color = "#3b82f6"; }
-        title.innerText = "Buscando Rider...";
-        if(desc) desc.innerText = "Esperando que un conductor acepte";
-    } 
-    else if (order.status === 'yendo_al_local') {
-        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-motorcycle"></i>'; iconBox.style.background = "var(--rapi-orange)"; iconBox.style.color = "white"; }
-        title.innerText = "¡Rider Asignado!";
-        if(desc) desc.innerText = "Conductor va rumbo al comercio";
-        if(riderBox) riderBox.style.display = 'flex';
-    }
-    else if (order.status === 'en_local' || order.status === 'preparando') {
-        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-store"></i>'; iconBox.style.background = "#f59e0b"; iconBox.style.color = "white"; }
-        title.innerText = "En el Comercio";
-        if(desc) desc.innerText = "Rider está recogiendo tu comida";
-        if(riderBox) riderBox.style.display = 'flex';
-    }
-    else if (order.status === 'en_camino') {
-        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-map-marked-alt"></i>'; iconBox.style.background = "#10b981"; iconBox.style.color = "white"; }
-        title.innerText = "¡En Camino!";
-        if(desc) desc.innerText = "El rider viaja hacia tu dirección";
-        if(riderBox) riderBox.style.display = 'flex';
-    }
-    else if (order.status === 'entregado' || order.status === 'completado') {
-        if(iconBox) { iconBox.innerHTML = '<i class="fas fa-check-circle"></i>'; iconBox.style.background = "#059669"; iconBox.style.color = "white"; }
-        title.innerText = "¡Entregado!";
-        if(desc) desc.innerText = "¡Gracias por pedir con nosotros!";
-        clearInterval(trackingInterval); // Detener el radar
-    }
-}
-
-    function openModal(i, t, x, c) {
-        const icon = document.getElementById('modal-icon');
-        const title = document.getElementById('modal-title');
-        const msg = document.getElementById('modal-msg');
-        const modal = document.getElementById('modal');
-
-        if (icon) { icon.className = i; icon.style.color = c; }
-        if (title) title.innerText = t;
-        if (msg) msg.innerText = x;
-        if (modal) modal.style.display = 'flex';
-    }
-
-    function closeModal() {
-        const modal = document.getElementById('modal');
-        if (modal) modal.style.display = 'none';
-    }
 
     // --- DIAPOSITIVAS (Slider) ---
     let currentSlideIndex = 1;
@@ -2965,3 +2840,216 @@ window.captureGPS = function(context) {
         showProError("Tu celular o navegador no soporta esta función de GPS.", []);
     }
 };
+
+// ================= MOTOR DE TRACKING PRO (GOOGLE MAPS + UPSELLING PREMIUM) =================
+const TrackingEngine = {
+    orderId: null,
+    pollInterval: null,
+    map: null,
+    markerRider: null,
+    markerCustomer: null,
+    audioAlert: new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'),
+    isMinimized: false,
+
+    restore() {
+        const savedData = localStorage.getItem('rapi_active_tracking');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            this.start(data.id, data.lat, data.lon, data.store, true);
+        }
+    },
+
+    start(orderId, customerLat, customerLon, storeName, isRestore = false) {
+        this.orderId = orderId;
+        this.isMinimized = false;
+        
+        if (!isRestore) {
+            localStorage.setItem('rapi_active_tracking', JSON.stringify({
+                id: orderId, lat: customerLat, lon: customerLon, store: storeName
+            }));
+        }
+
+        const widget = document.getElementById('floating-tracking-widget');
+        if(widget) widget.classList.remove('show');
+
+        this.maximize(); 
+
+        // ================= MAGIA DE GOOGLE MAPS =================
+        if (!this.map) {
+            this.map = L.map('tracking-map', { zoomControl: false }).setView([customerLat, customerLon], 15);
+            
+            // Usamos los servidores oficiales de Google Maps (Estilo Calles)
+            L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=es&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                attribution: '© Google Maps'
+            }).addTo(this.map);
+            
+            const userIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:var(--success); width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>` });
+            this.markerCustomer = L.marker([customerLat, customerLon], { icon: userIcon }).addTo(this.map);
+        } else {
+            this.map.setView([customerLat, customerLon], 15);
+        }
+
+        setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 400);
+        
+        // Cargar las nuevas tarjetas Premium
+        this.populateUpselling();
+
+        if(this.pollInterval) clearInterval(this.pollInterval);
+        this.checkStatus();
+        this.pollInterval = setInterval(() => this.checkStatus(), 5000);
+    },
+
+    minimize() {
+        this.isMinimized = true;
+        const viewTracking = document.getElementById('view-tracking');
+        const widget = document.getElementById('floating-tracking-widget');
+        const navBar = document.getElementById('main-nav');
+        
+        if (viewTracking) {
+            viewTracking.style.transform = 'translateY(100%)';
+            setTimeout(() => { viewTracking.style.display = 'none'; }, 400);
+        }
+        if (widget) widget.classList.add('show');
+        if (navBar) navBar.style.transform = "translateY(0)";
+        if (navigator.vibrate) navigator.vibrate(50);
+    },
+
+    maximize() {
+        this.isMinimized = false;
+        const viewTracking = document.getElementById('view-tracking');
+        const widget = document.getElementById('floating-tracking-widget');
+        const navBar = document.getElementById('main-nav');
+        
+        if (widget) widget.classList.remove('show');
+        if (viewTracking) {
+            viewTracking.style.display = 'flex';
+            setTimeout(() => { viewTracking.style.transform = 'translateY(0)'; }, 50);
+        }
+        if (navBar) navBar.style.transform = "translateY(150px)";
+        
+        setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 400);
+        if (navigator.vibrate) navigator.vibrate(50);
+    },
+
+    async checkStatus() {
+        try {
+            // Lógica de progreso INTACTA
+            const res = await fetch('https://raiderelporgreso.onrender.com/api/pedidos');
+            const data = await res.json();
+            
+            const myOrder = data.data.find(o => o.id === this.orderId);
+
+            if (!myOrder) {
+                this.triggerDelivered(); 
+            } else {
+                let step = 1; let title = "Buscando Rider..."; let sub = "Confirmando orden con el local.";
+                
+                if (myOrder.rider_id) {
+                    if (myOrder.status === 'aceptado') {
+                        step = 1; title = "¡Rider Asignado!"; sub = "Va en camino al restaurante.";
+                    } else if (myOrder.status === 'en_local') {
+                        step = 2; title = "Rider en el Local"; sub = "Esperando que preparen tu pedido.";
+                    } else if (myOrder.status === 'en_camino') {
+                        step = 3; title = "¡Rider en Camino!"; sub = "Prepárate para salir a recibirlo.";
+                        this.simulateRiderMovement();
+                    }
+                }
+                this.updateUI(step, title, sub, myOrder.rider_id);
+            }
+        } catch (error) { console.error("Error Tracking:", error); }
+    },
+
+    updateUI(step, title, sub, riderName = null) {
+        document.getElementById('tracking-main-title').textContent = title;
+        document.getElementById('tracking-sub-title').textContent = sub;
+        
+        const fwTitle = document.getElementById('fw-title');
+        if(fwTitle) fwTitle.textContent = title;
+
+        if (riderName) {
+            document.getElementById('rider-info-card').style.display = 'flex';
+            document.getElementById('tracking-rider-name').textContent = "Rider #" + riderName.substring(0,4).toUpperCase();
+        }
+
+        const steps = [document.getElementById('step-1'), document.getElementById('step-2'), document.getElementById('step-3')];
+        steps.forEach(s => { if(s) s.classList.remove('active', 'pulsing'); });
+
+        if (step >= 1 && steps[0]) steps[0].classList.add('active');
+        if (step >= 2 && steps[1]) steps[1].classList.add('active');
+        if (step >= 3 && steps[2]) steps[2].classList.add('active', 'pulsing');
+        
+        const fwIcon = document.getElementById('fw-icon-motor');
+        if (fwIcon) {
+            if (step === 3) fwIcon.className = "fas fa-motorcycle fa-bounce text-green";
+            else fwIcon.className = "fas fa-motorcycle";
+        }
+    },
+
+    triggerDelivered() {
+        clearInterval(this.pollInterval);
+        localStorage.removeItem('rapi_active_tracking'); 
+        
+        const widget = document.getElementById('floating-tracking-widget');
+        if(widget) widget.classList.remove('show');
+
+        const viewTracking = document.getElementById('view-tracking');
+        if(viewTracking) viewTracking.style.opacity = '0';
+        
+        setTimeout(() => {
+            if(viewTracking) viewTracking.style.display = 'none';
+            const ratingModal = document.getElementById('rating-modal');
+            if(ratingModal) ratingModal.style.display = 'flex';
+        }, 400);
+    },
+
+    simulateRiderMovement() {
+        if (!this.alertPlayed) {
+            this.audioAlert.play().catch(e => {}); 
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
+            this.alertPlayed = true;
+        }
+    },
+
+    // ================= NUEVAS TARJETAS PREMIUM =================
+    populateUpselling() {
+        const container = document.getElementById('upsell-carousel');
+        if (!container || typeof DB === 'undefined') return;
+        container.innerHTML = '';
+        
+        const allItems = [];
+        for (let k in DB) { if (DB[k].menu) allItems.push(...DB[k].menu); }
+        const shuffled = allItems.sort(() => 0.5 - Math.random()).slice(0, 6); 
+        
+        shuffled.forEach(item => {
+            container.innerHTML += `
+                <div class="upsell-card-pro" onclick="alert('Esta función se activará en tu próxima compra')">
+                    <img src="${item.img || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'}" class="upsell-img-pro" loading="lazy">
+                    <div class="upsell-info-pro">
+                        <h5 class="upsell-title-pro">${item.n}</h5>
+                        <p class="upsell-price-pro">L ${item.p.toFixed(2)}</p>
+                    </div>
+                    <button class="upsell-add-btn"><i class="fas fa-plus"></i></button>
+                </div>`;
+        });
+    },
+
+    rate(stars) {
+        document.querySelectorAll('.rating-star').forEach((el, i) => {
+            el.classList.toggle('active', i < stars);
+        });
+        setTimeout(() => this.closeRating(), 800);
+    },
+
+    closeRating() {
+        document.getElementById('rating-modal').style.display = 'none';
+        window.location.reload(); 
+    }
+};
+
+// ================= ACTIVADOR DE MEMORIA =================
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        TrackingEngine.restore();
+    }, 1500); 
+});
