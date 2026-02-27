@@ -1439,131 +1439,116 @@ function sendServiceOrder() {
 // NUEVO SISTEMA DE ENVÍO Y RASTREO (CONEXIÓN CON RIDER PRO)
 // =======================================================
 
-// 1. FUNCIÓN QUE CREA EL PEDIDO EN RENDER
+// =======================================================
+// SISTEMA DE ENVÍO BLINDADO (ANTI-ERRORES)
+// =======================================================
+
 window.sendOrder = async function() {
-    if (cart.length === 0) return showProError("Tu carrito está vacío.", []);
-
-    const addrInput = document.getElementById('address-input');
-    const phoneInput = document.getElementById('checkout-phone-input');
-    const coordsInput = document.getElementById('checkout-coords');
-
-    if (!addrInput || !addrInput.value) return showProError("Ingresa tu dirección exacta.", ['address-input']);
-    if (!coordsInput || !coordsInput.value) return showProError("Fija tu ubicación en el mapa de entrega.", ['btn-gps-checkout']);
-    if (!phoneInput || !phoneInput.value) return showProError("Ingresa tu teléfono de contacto.", ['checkout-phone-input']);
-
-    // Extraer coordenadas limpias
-    const coordsSplit = coordsInput.value.split(',');
-    const lat = parseFloat(coordsSplit[0]);
-    const lon = parseFloat(coordsSplit[1]);
-
-    const commerceName = cart[0].s;
-    const itemsSummary = cart.map(item => `${item.q}x ${item.n}`).join(', ');
-
-    // Construir el paquete de datos para Render
-    const orderData = {
-        cliente: currentUser ? currentUser.name : 'Cliente Rapi',
-        direccion: addrInput.value,
-        tienda: commerceName,
-        productos: itemsSummary,
-        total: window.totalNum || 0, 
-        telefono: phoneInput.value,
-        referencia: typeof payMethod !== 'undefined' ? payMethod : "Efectivo",
-        lat: lat,
-        lon: lon
-    };
-
-    // Cambiar botón a modo Carga
-    const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
-    const originalText = btnConfirm.innerHTML;
-    btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CONECTANDO CON RIDERS...';
-    btnConfirm.parentElement.disabled = true;
-
     try {
-        // Enviar a la Base de Datos PostgreSQL en Render
-        const API_URL = "https://raiderelporgreso.onrender.com"; // TU URL
+        // 1. Validaciones Básicas
+        if (cart.length === 0) return showProError("Tu carrito está vacío.", []);
+
+        const addrInput = document.getElementById('address-input');
+        const phoneInput = document.getElementById('checkout-phone-input');
+        const coordsInput = document.getElementById('checkout-coords');
+
+        if (!addrInput || !addrInput.value.trim()) return showProError("Ingresa tu dirección exacta.", ['address-input']);
+        if (!phoneInput || !phoneInput.value.trim()) return showProError("Ingresa tu teléfono de contacto.", ['checkout-phone-input']);
+        if (!coordsInput || !coordsInput.value.trim()) return showProError("Por favor presiona el botón de 'Fijar mi ubicación' en el mapa.", ['btn-gps-checkout']);
+
+        // 2. Extracción Segura de Coordenadas (GPS)
+        let lat = 0, lon = 0;
+        try {
+            const coordsSplit = coordsInput.value.split(',');
+            lat = parseFloat(coordsSplit[0].trim());
+            lon = parseFloat(coordsSplit[1].trim());
+            if (isNaN(lat) || isNaN(lon)) throw new Error("GPS corrupto");
+        } catch(e) {
+            return showProError("Error con el GPS. Vuelve a capturar tu ubicación.", ['btn-gps-checkout']);
+        }
+
+        // 3. Extracción de Tienda y Total en tiempo real (A prueba de fallos)
+        const commerceName = cart[0].s;
+        const itemsSummary = cart.map(item => `${item.q}x ${item.n}`).join(', ');
+        
+        let totalCalculado = 0;
+        cart.forEach(item => { totalCalculado += (item.p * item.q); });
+
+        // 4. Nombre del cliente (Protección contra fallos de Firebase)
+        let nombreCliente = 'Cliente Rapi';
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.name) {
+            nombreCliente = currentUser.name;
+        }
+
+        // 5. Empaquetar Datos
+        const orderData = {
+            cliente: nombreCliente,
+            direccion: addrInput.value,
+            tienda: commerceName,
+            productos: itemsSummary,
+            total: totalCalculado,
+            telefono: phoneInput.value,
+            referencia: typeof payMethod !== 'undefined' ? payMethod : "Efectivo",
+            lat: lat,
+            lon: lon
+        };
+
+        // 6. Efecto Visual de Carga
+        const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
+        let originalText = "CONFIRMAR ORDEN";
+        if (btnConfirm) {
+            originalText = btnConfirm.innerHTML;
+            btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESANDO...';
+            btnConfirm.parentElement.disabled = true;
+        }
+
+        // =======================================================
+        // 7. CONEXIÓN AL SERVIDOR (AQUÍ ESTÁ LA MAGIA)
+        // =======================================================
+        const API_URL = "https://raiderelporgreso.onrender.com"; // <-- Asegúrate que sea tu URL real
+        
+        console.log("Enviando orden a Render:", orderData);
+
         const response = await fetch(`${API_URL}/api/pedidos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify(orderData)
         });
         
         const data = await response.json();
         
-        if (data.status === 'success') {
+        // 8. Respuesta del Servidor
+        if (response.ok && data.status === 'success') {
             cart = []; // Vaciar carrito
             if(typeof updateMiniCart === "function") updateMiniCart();
             
             // Iniciar el Radar de Rastreo
-            startTrackingView(data.id, orderData);
+            if(typeof startTrackingView === "function") {
+                startTrackingView(data.id, orderData);
+            } else {
+                alert("¡Orden enviada con éxito al Rider!");
+            }
         } else {
-            showProError("Error al procesar la orden.", []);
+            // Si el servidor (Render/Python) rechaza la orden, mostramos el error exacto
+            alert("Error del servidor Render: " + JSON.stringify(data));
+            if (btnConfirm) btnConfirm.innerHTML = originalText;
         }
+
     } catch (error) {
-        console.error("Error de conexión:", error);
-        showProError("Error de servidor. Revisa tu internet.", []);
+        // Si se rompe el Internet o la URL está mal escrita
+        console.error("Error Catastrófico:", error);
+        alert("Fallo de conexión crítico. Revisa si el servidor en Render está encendido. Error: " + error.message);
     } finally {
-        btnConfirm.innerHTML = originalText;
-        btnConfirm.parentElement.disabled = false;
+        // Siempre reactivar el botón al final
+        const btnConfirm = document.getElementById('txt-final-order') || document.querySelector('.btn-whatsapp');
+        if (btnConfirm) {
+            btnConfirm.parentElement.disabled = false;
+        }
     }
 };
-
-// 2. LÓGICA DEL MAPA Y RASTREO EN VIVO
-let trackingInterval = null;
-let trackingMap = null;
-
-window.startTrackingView = function(orderId, orderData) {
-    // Esconder todas las vistas y mostrar solo el Rastreador
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-tracking').style.display = 'flex';
-    document.getElementById('view-tracking').classList.add('active');
-
-    // Llenar datos en pantalla
-    document.getElementById('track-order-id').innerText = orderId;
-    document.getElementById('track-store-name').innerText = orderData.tienda;
-    document.getElementById('track-total').innerText = 'L ' + orderData.total.toFixed(2);
-
-    // Dibujar el Mapa
-    if (!trackingMap) {
-        trackingMap = L.map('tracking-map', {zoomControl: false}).setView([orderData.lat, orderData.lon], 15);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(trackingMap);
-        
-        // Marcador del Cliente (Punto Azul)
-        const clientIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#3b82f6; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
-        L.marker([orderData.lat, orderData.lon], {icon: clientIcon}).addTo(trackingMap);
-
-        // Buscar coordenadas de la tienda para pintar la ruta
-        let storeLat = 15.4006; let storeLon = -87.8097; 
-        if (typeof DB !== 'undefined' && DB[orderData.tienda]) {
-            storeLat = DB[orderData.tienda].lat || storeLat;
-            storeLon = DB[orderData.tienda].lon || storeLon;
-        }
-        
-        // Marcador del Comercio (Punto Negro)
-        const storeIcon = L.divIcon({ className: 'custom-marker', html: `<div style="background:#1f2937; width:22px; height:22px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`, iconSize: [22,22]});
-        L.marker([storeLat, storeLon], {icon: storeIcon}).addTo(trackingMap);
-
-        // Ajustar cámara
-        const bounds = L.latLngBounds([[orderData.lat, orderData.lon], [storeLat, storeLon]]);
-        trackingMap.fitBounds(bounds, {padding: [40, 40]});
-    }
-
-    // Iniciar el radar para preguntarle a Render qué está haciendo el Rider cada 4 segundos
-    if (trackingInterval) clearInterval(trackingInterval);
-    trackingInterval = setInterval(() => pollOrderStatus(orderId), 4000);
-};
-
-// 3. CONSULTAR AL SERVIDOR
-async function pollOrderStatus(orderId) {
-    try {
-        const API_URL = "https://raiderelporgreso.onrender.com";
-        const response = await fetch(`${API_URL}/api/pedidos/${orderId}`);
-        const resData = await response.json();
-        
-        if (resData.status === 'success') {
-            updateTrackingUI(resData.data);
-        }
-    } catch (e) { console.error("Error consultando estado", e); }
-}
 
 // 4. CAMBIAR LA PANTALLA SEGÚN LO QUE HAGA EL RIDER
 function updateTrackingUI(order) {
