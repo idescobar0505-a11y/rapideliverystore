@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="theme-color" content="#000000">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RAPI DELIVERY | FIREBASE EDITION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+<link rel="stylesheet" href="/static/estilos/estilos compltos.css?=13.0">
+
+    
+</head>
+<body>
+
+<div id="intro-screen">
+    <i class="fas fa-dove intro-bird"></i>
+    <div class="intro-text">RAPI DELIVERY HN</div>
+</div>
+
+<div class="app-shell">
+
+    <div id="view-login" class="view" style="padding:0; background:#000;">
+        <div class="login-bg-container">
+            <img src="https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=1080&auto=format&fit=crop" class="login-bg-img" onerror="this.src=''">
+            <div class="login-gradient-overlay"></div>
+        </div>
+
+        <div class="login-content-wrapper">
+            <div class="login-brand-box">
+                <i class="fas fa-dove login-logo-icon"></i>
+                <div style="color:white; font-weight:800; letter-spacing:3px; margin-top:10px; font-size:0.9rem; opacity:0.8;">RAPI DELIVERY</div>
+            </div>
+
+            <div id="hero-text-box">
+                <h1 class="hero-slogan">Pide lo que quieras,Cuando<br><span style="color:var(--rapi-orange);"> Quieras donde quieras.</span></h1>
+                <p class="hero-sub">Selecciona tu ubicación para comenzar.</p>
+            </div>
+
+            <div class="location-selectors">
+                <div class="select-box">
+                    <i class="fas fa-globe-americas icon-main"></i>
+                    <select id="country-select" onchange="updateCities()">
+                        <option value="" disabled selected>Selecciona tu País</option>
+                        <option value="hn">🇭🇳 Honduras</option>
+                    </select>
+                    <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+
+                <div class="select-box" id="city-box" style="opacity: 0.4; pointer-events: none;">
+                    <i class="fas fa-map-marker-alt icon-main"></i>
+                    <select id="city-select" onchange="checkReadyStatus()" disabled>
+                        <option value="" disabled selected>Primero elige un país</option>
+                    </select>
+                    <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+            </div>
+
+            <div class="ready-message-glass" id="ready-msg-box">
+                <h3 class="brand-font">¡Ubicación Confirmada! 📍</h3>
+                <p>Regístrate o inicia sesión ahora mismo y empieza a pedir sin salir de casa. Tu comida favorita te espera.</p>
+            </div>
+
+            <div id="auth-buttons-container" style="display: none; animation: slideUpFade 0.5s forwards;">
+                <button class="btn-facebook-neon" onclick="fakeFacebookLogin()" id="btn-fb">
+                    <i class="fab fa-facebook-f" style="font-size: 1.3rem;"></i>
+                    <span>CONTINUAR CON FACEBOOK</span>
+                </button>
+
+                <button class="btn-google-neon" onclick="loginWithGoogle()">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" onerror="this.src=''">
+                    <span>CONTINUAR CON GOOGLE</span>
+                </button>
+
+                <button onclick="skipLogin()" style="width: 100%; padding: 14px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 15px; font-weight: 700; font-size: 0.85rem; margin-top: 15px; cursor: pointer; backdrop-filter: blur(5px); transition: all 0.3s ease; display: flex; justify-content: center; align-items: center; gap: 8px; letter-spacing: 1px;">
+                    <span>ENTRAR COMO INVITADO</span> <i class="fas fa-arrow-right" style="font-size: 0.8rem; opacity: 0.8;"></i>
+                </button>
+
+                <p style="text-align:center; color:#9ca3af; font-size:0.7rem; margin-top:20px; margin-bottom:10px;">
+                    Al continuar aceptas nuestros Términos y Política de Privacidad.
+                </p>
+            </div> </div> </div>
+
+    <div id="view-onboarding" class="view" style="padding:0; background:white; z-index:200;">
+        <div class="slider-container">
+            <div class="slide active" id="slide-1">
+                <div class="slide-icon-circle">
+                    <i class="fas fa-motorcycle" style="font-size:4rem; color:var(--rapi-orange);"></i>
+                </div>
+                <h2 class="brand-font slide-title">¡Relájate!</h2>
+                <p class="slide-desc">No te preocupes, nosotros <b>hacemos la vuelta por vos</b>. Sin salir de casa, sin tráfico y sin estrés.</p>
+            </div>
+            <div class="slide" id="slide-2">
+                <div class="slide-icon-circle">
+                    <i class="fas fa-utensils" style="font-size:4rem; color:var(--rapi-orange);"></i>
+                </div>
+                <h2 class="brand-font slide-title">Comida y Antojos</h2>
+                <p class="slide-desc">Te llevamos tu comida favorita y esos antojos irresistibles directo a tu puerta, calientito y rápido.</p>
+            </div>
+            <div class="slide" id="slide-3">
+                <div class="slide-icon-circle">
+                    <i class="fas fa-box-open" style="font-size:4rem; color:var(--rapi-orange);"></i>
+                </div>
+                <h2 class="brand-font slide-title">Encomiendas y Trámites</h2>
+                <p class="slide-desc">Llevamos paquetes, regalos o documentos importantes. <b>Amplia cobertura en el Sector Norte</b> y donde tú elijas.</p>
+            </div>
+        </div>
+
+        <div class="slider-bottom">
+            <div class="dots-container">
+                <div class="dot active" id="dot-1"></div>
+                <div class="dot" id="dot-2"></div>
+                <div class="dot" id="dot-3"></div>
+            </div>
+            <button class="btn-next-pro" onclick="nextSlide()" id="btn-slide-action">
+                SIGUIENTE <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="view-home" class="view">
+        <div class="home-particles-container" id="bg-particles-box"></div>
+        
+        <div class="header-home">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:50px; height:50px; background:var(--rapi-orange); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:1.8rem;"><i class="fas fa-dove"></i></div>
+                <div>
+                    <h2 class="brand-font gradient-text" style="margin:0;">RAPI DELIVERY</h2>
+                    <span style="font-size:0.85rem; color:#9ca3af; font-weight:600;" id="welcome-user">Hola,</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-search-wrapper">
+            <i class="fas fa-search search-icon-home"></i>
+            <input type="text" class="home-search-input" placeholder="¿Qué se te antoja hoy?..." oninput="dynamicSearch(this.value)">
+            <div class="dynamic-results" id="dynamic-results"></div>
+        </div>
+
+        <div id="smart-recommendations-container" style="margin-bottom: 25px;">
+            </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:end; margin:20px 0 10px;">
+            <div class="section-title" style="margin:0;"><i class="fas fa-utensils"></i>Restaurantes Aliados</div>
+            <button onclick="openAllMerchants('food')" style="background:transparent; border:none; color:var(--rapi-orange); font-weight:700; font-size:0.85rem; cursor:pointer;">Ver todos <i class="fas fa-arrow-right" style="font-size:0.7rem;"></i></button>
+        </div>
+        <div class="merchants-wrapper">
+            <div class="scroll-btn left" onclick="scrollMerchants('food', -1)"><i class="fas fa-chevron-left"></i></div>
+            <div class="merchants-scroll" id="merchant-container"></div>
+            <div class="scroll-btn right" onclick="scrollMerchants('food', 1)"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:end; margin:20px 0 10px;">
+            <div class="section-title" style="margin:0;"><i class="fas fa-shopping-basket" style="color:#2563eb;"></i>Rapi Market</div>
+            <button onclick="openAllMerchants('market')" style="background:transparent; border:none; color:#2563eb; font-weight:700; font-size:0.85rem; cursor:pointer;">Ver todos <i class="fas fa-arrow-right" style="font-size:0.7rem;"></i></button>
+        </div>
+        <div class="merchants-wrapper">
+            <div class="scroll-btn left" onclick="scrollMerchants('market', -1)"><i class="fas fa-chevron-left" style="color:#2563eb;"></i></div>
+            <div class="merchants-scroll" id="market-container"></div>
+            <div class="scroll-btn right" onclick="scrollMerchants('market', 1)"><i class="fas fa-chevron-right" style="color:#2563eb;"></i></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:end; margin:20px 0 10px;">
+            <div class="section-title" style="margin:0;"><i class="fas fa-heartbeat" style="color:#10b981;"></i>Farmacias & Salud</div>
+            <button onclick="openAllMerchants('health')" style="background:transparent; border:none; color:#10b981; font-weight:700; font-size:0.85rem; cursor:pointer;">Ver todos <i class="fas fa-arrow-right" style="font-size:0.7rem;"></i></button>
+        </div>
+        <div class="merchants-wrapper">
+            <div class="scroll-btn left" onclick="scrollMerchants('health', -1)"><i class="fas fa-chevron-left" style="color:#10b981;"></i></div>
+            <div class="merchants-scroll" id="health-container"></div>
+            <div class="scroll-btn right" onclick="scrollMerchants('health', 1)"><i class="fas fa-chevron-right" style="color:#10b981;"></i></div>
+        </div>
+
+        <h3 class="brand-font" style="margin:20px 0 10px; color:#374151;">Servicios Especiales</h3>
+        <div class="services-grid">
+            <div class="service-card" onclick="openServiceForm('envio')">
+                <i class="fas fa-box-open service-icon"></i>
+                <div class="service-title">ENVÍOS</div>
+                <div class="service-desc">Mandar paquetes</div>
+            </div>
+            <div class="service-card" onclick="openServiceForm('encomienda')">
+                <i class="fas fa-motorcycle service-icon"></i>
+                <div class="service-title">ENCOMIENDAS</div>
+                <div class="service-desc">Mandaditos y Trámites</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-history" class="view">
+        <h2 class="brand-font" style="margin-bottom:20px; color:#1f2937;">Mi Actividad</h2>
+
+        <div class="loyalty-progress-container" id="loyalty-box-main">
+            <h4 class="brand-font" style="color:var(--rapi-orange); margin-bottom:5px;">RAPI REWARDS 👑</h4>
+            <p style="font-size:0.8rem; color:rgba(255,255,255,0.7);">Completa 10 pedidos y obtén DELIVERY GRATIS</p>
+            
+            <div class="loyalty-steps" id="loyalty-steps-container" style="position:relative; margin-top:10px; display:flex; justify-content:space-between;">
+                </div>
+            <div style="margin-top:15px; font-weight:800; color:white; font-size:0.9rem;">
+                Progreso: <span id="loyalty-count">0</span>/10
+            </div>
+        </div>
+
+        <h3 class="brand-font" style="margin-bottom:15px; font-size:1.1rem; color:#374151;">Historial de Pedidos</h3>
+        <div id="history-list">
+            <div style="text-align:center; color:#9ca3af; padding:30px;">
+                <i class="fas fa-receipt" style="font-size:3rem; opacity:0.3; margin-bottom:10px;"></i>
+                <p>Cargando historial...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-profile" class="view">
+        <div style="text-align: center; margin-bottom: 25px;">
+            <div style="width: 80px; height: 80px; background: var(--rapi-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; margin: 0 auto 10px; box-shadow: 0 10px 20px rgba(255,102,0,0.2);">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <h2 class="brand-font" id="profile-name-display" style="color:#1f2937; margin:0;">Mi Perfil</h2>
+            <p id="profile-email-display" style="color:#9ca3af; font-size:0.85rem;">Cargando datos...</p>
+        </div>
+
+        <div class="services-grid" style="margin-bottom: 25px;">
+            <div class="service-card" onclick="navTo('support')" style="padding: 15px;">
+                <i class="fas fa-headset service-icon" style="font-size: 1.5rem;"></i>
+                <div class="service-title" style="font-size: 0.8rem;">Soporte Online</div>
+            </div>
+            
+            <div class="service-card plus-blue-card" onclick="abrirSeccionPlus()" style="padding: 15px;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:5px; margin-bottom:5px;">
+                    <span style="font-weight:800; font-size:1rem;">RAPI</span>
+                    <span class="plus-anim-text">PLUS</span>
+                </div>
+                <div class="service-desc" style="color:rgba(255,255,255,0.8);">Ver Beneficios</div>
+            </div>
+        </div>
+        
+        <div id="profile-savings-card" style="margin: 20px; background: linear-gradient(135deg, #FFD700, #FDB931); border-radius: 20px; padding: 20px; box-shadow: 0 10px 20px rgba(253, 185, 49, 0.3); display: none;">
+        </div>
+
+
+        <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.03); border: 1px solid #f3f4f6;">
+            <div class="d-res-item" onclick="navTo('register-business')">
+                <i class="fas fa-store" style="color: var(--rapi-orange); width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Registrar mi Negocio</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+            </div>
+
+            <div class="d-res-item" onclick="navTo('work-with-us')">
+                <i class="fas fa-motorcycle" style="color: #2563eb; width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Trabajar como Rider</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+            </div>
+
+        <div class="d-res-item" onclick="openAddressBook()">
+                <i class="fas fa-map-marked-alt" style="color: #10b981; width: 20px; text-align: center; font-size: 1.1rem;"></i>
+                <div style="flex:1; margin-left: 12px; font-weight: 600; color: #475569;">Mis Direcciones</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #cbd5e1;"></i>
+            </div>
+
+            <div class="d-res-item" onclick="navTo('suggestions')">
+                <i class="fas fa-lightbulb" style="color: #f59e0b; width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Buzón de Sugerencias</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+            </div>
+
+            <div class="d-res-item" onclick="navTo('donations')">
+                <i class="fas fa-hand-holding-heart" style="color: #e11d48; width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Donaciones (Hábitat HN)</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+            </div>
+
+            <div class="d-res-item" onclick="navTo('legal')">
+                <i class="fas fa-file-contract" style="color: #9ca3af; width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Aviso Legal y Privacidad</div>
+                <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+            </div>
+
+            <div class="d-res-item" onclick="startRapiTour(true)">
+        <i class="fas fa-magic" style="color: #8b5cf6; width: 20px;"></i>
+    <div style="flex:1; margin-left: 10px; font-weight: 600; color: #4b5563;">Ver Tutorial de la App</div>
+    <i class="fas fa-chevron-right" style="font-size: 0.8rem; color: #d1d5db;"></i>
+</div>
+
+            <div class="d-res-item" onclick="logoutUser()" style="border-bottom: none;">
+                <i class="fas fa-sign-out-alt" style="color: #ef4444; width: 20px;"></i>
+                <div style="flex:1; margin-left: 10px; font-weight: 700; color: #ef4444;">Cerrar Sesión</div>
+            </div>
+        </div>
+        <div style="height: 100px;"></div>
+    </div>
+
+    <div id="view-night-mode" class="view" style="padding:0;">
+        <div class="night-header">
+            <i class="fas fa-moon moon-icon"></i>
+            <h2 class="brand-font" style="margin-bottom:5px;">Antojos Nocturnos</h2>
+            <p style="color:#9ca3af; font-size:0.9rem;">Selección económica para tu cena.</p>
+        </div>
+        <div style="padding:20px;">
+            <button onclick="exitNightMode()" style="border:none; background:transparent; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:5px; margin-bottom:15px;"><i class="fas fa-arrow-left"></i> Volver al Día</button>
+            <div id="night-list-container"></div>
+            <div style="height: 100px; width: 100%;"></div>
+        </div>
+    </div>
+
+    <div id="view-restaurant" class="view" style="padding-top:0;">
+        <div class="back-btn-floating" onclick="navTo('home')"><i class="fas fa-arrow-left"></i></div>
+        <div id="rest-cover" class="restaurant-cover"></div>
+        
+        <div class="restaurant-header-card">
+            <div class="restaurant-logo-name">
+                <img src="" id="rest-logo-img" class="restaurant-logo-img" onerror="this.src=''">
+                <div>
+                    <h2 class="brand-font" id="rest-title" style="color:#1f2937; margin:0; font-size:1.4rem;">Titulo</h2>
+                    <div class="restaurant-meta" style="margin-top:5px;">
+                        <span><i class="fas fa-star"></i> 4.8</span>
+                        <span><i class="fas fa-clock"></i> 20 - 40 min</span>
+                    </div>
+                </div>
+            </div>
+            <div style="border-top:1px solid #f3f4f6; padding-top:15px;">
+                <div class="menu-filter-scroll" id="menu-filters-container">
+                    </div>
+            </div>
+        </div>
+
+        <h3 class="brand-font" style="margin-bottom:15px; color:#374151; padding:0 10px;">Catálogo</h3>
+        <div id="menu-list" style="padding:0 10px;"></div>
+    </div>
+
+    <div id="view-checkout" class="view">
+        <div class="pro-app-bar" style="margin: -20px -20px 20px -20px; top: -20px; position: sticky; z-index: 100; background: rgba(248, 250, 252, 0.98); border-bottom: 1px solid #f1f5f9;">
+            <button onclick="attemptExitCheckout()" class="btn-back-pro"><i class="fas fa-arrow-left"></i></button>
+            <h2 class="brand-font" style="margin:0; color:#1f2937; flex:1; text-align:center;">Finalizar Pedido</h2>
+            <div style="width: 45px;"></div>
+        </div>
+        
+        <div class="search-container">
+            <i class="fas fa-search" style="position:absolute; left:15px; top:18px; color:#9ca3af;"></i>
+            <input type="text" class="search-input" placeholder="Busca tu colonia..." oninput="filterSectors(this.value, 'food')" id="sector-input">
+            <div class="search-results" id="food-results"></div>
+        </div>
+        <div id="zone-alert" class="warning-tag"></div>
+
+        <div class="priority-box" onclick="togglePriority()">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="background:#fff7ed; padding:10px; border-radius:50%; color:var(--rapi-orange);"><i class="fas fa-bolt"></i></div>
+                <div>
+                    <h4 class="brand-font" style="color:#374151; margin:0;">Envío Prioritario (+L 12)</h4>
+                    <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;" id="delivery-time-text">Entrega estimada: 10min - 25min</div>
+                </div>
+            </div>
+            <div class="toggle-switch" id="priority-switch"></div>
+        </div>
+
+        <div class="invoice-card">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;color:var(--rapi-orange);"><i class="fas fa-receipt"></i><h4 class="brand-font">Resumen Detallado</h4></div>
+            <div id="cart-list"><div style="text-align:center; color:#9ca3af; padding:20px;">Tu carrito está vacío</div></div>
+            <div style="margin-top:20px;" id="checkout-summary-container">
+                <div class="invoice-row"><span>Subtotal</span><b id="lbl-sub">L 0.00</b></div>
+                <div class="invoice-row"><span>Envío Base</span><b id="lbl-ship">L 0.00</b></div>
+                <div class="invoice-row" id="row-priority" style="display:none; color:var(--rapi-orange);"><span>Prioridad</span><b>L 12.00</b></div>
+                <div class="invoice-row" id="row-loyalty" style="display:none; color:#10b981;"><span>Fidelización (10/10)</span><b>Envío Gratis</b></div>
+                <div class="invoice-row" id="row-tip" style="display:none; color:#10b981;"><span>Propina Rider</span><b id="lbl-tip">L 0.00</b></div>
+
+                <div class="discount-box" id="discount-btn" onclick="toggleDiscount()">
+                    <div><b style="font-size:0.9rem;">DESCUENTO FINDE (10%)</b><div style="font-size:0.75rem; opacity:0.8;">Solo Viernes y Sábado</div></div>
+                    <div class="check-circle"><i class="fas fa-check" style="font-size:0.8rem;"></i></div>
+                </div>
+
+                <div class="total-section"><span style="font-weight:700; color:#374151;">TOTAL A PAGAR</span><span class="total-amount" id="lbl-total">L 0.00</span></div>
+            </div>
+        </div>
+
+        <div class="rider-section">
+            <div class="rider-header">
+                <div class="rider-avatar-box">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2830/2830305.png" class="rider-img" id="rider-face" onerror="this.src=''">
+                    <div class="stars-container" id="stars-anim">
+                        <i class="fas fa-star text-yellow-400 star s1" style="color:#fbbf24;"></i>
+                        <i class="fas fa-star text-yellow-400 star s2" style="color:#fbbf24;"></i>
+                        <i class="fas fa-star text-yellow-400 star s3" style="color:#fbbf24;"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="brand-font" style="font-weight:800; color:#1f2937;">Propina para tu Rider</div>
+                    <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;">El 100% directo a su bolsillo</div>
+                </div>
+            </div>
+            
+            <div class="tip-grid">
+                <button class="tip-btn" onclick="selectTip(14, this)">L 14</button>
+                <button class="tip-btn" onclick="selectTip(23, this)">
+                    L 23
+                    <span class="recommended-tag">RECOMENDADO</span>
+                </button>
+                <button class="tip-btn" onclick="selectTip(34, this)">L 34</button>
+                <button class="tip-btn" onclick="openTipModal()">Otro</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:20px; background:white; padding:15px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 class="brand-font" style="margin:0;"><i class="fas fa-map-marker-alt" style="color:var(--rapi-orange);"></i> Entrega</h4>
+                <button onclick="openAddressBook()" style="background:#f1f5f9; border:none; padding:5px 10px; border-radius:8px; font-size:0.75rem; font-weight:700; color:#2563eb; cursor:pointer; transition:0.2s;">
+                    <i class="fas fa-bookmark"></i> Mis Direcciones
+                </button>
+            </div>
+            
+            <div id="checkout-address-chips" style="display:flex; gap:10px; overflow-x:auto; margin-bottom:15px; padding-bottom:5px;"></div>
+
+            <label class="input-label">Dirección Exacta</label>
+            <input type="text" id="address-input" class="search-input" style="padding-left:15px; margin-bottom:15px;" placeholder="Ej: Casa verde, portón negro...">
+
+            <label class="input-label">Ubicación en el mapa (Obligatorio)</label>
+            <button type="button" class="btn-gps-maps" id="btn-gps-checkout" onclick="captureGPS('checkout')">
+                <i class="fas fa-map-marker-alt maps-icon"></i> <span>Fijar mi ubicación actual</span>
+            </button>
+            <input type="hidden" id="checkout-coords">
+
+            <label class="input-label" style="margin-top:15px;">Teléfono de Contacto</label>
+            <input type="tel" id="checkout-phone-input" class="search-input" style="padding-left:15px;" placeholder="Tu número para llamarte al llegar">
+        </div>
+
+<h4 class="brand-font" style="margin-bottom:10px;">Método de Pago</h4>
+        <div class="payment-scroller-pro">
+            
+            <div class="payment-card-pro active" onclick="setPayment('Efectivo', this)">
+                <img src="https://i.ibb.co/VPHm432/lempiras.jpg" class="pay-bg-img">
+                <div class="pay-overlay cash"></div>
+                <div class="pay-content">
+                    <div>
+                        <div class="pay-title"><i class="fas fa-money-bill-wave"></i> EFECTIVO</div>
+                        <div class="pay-desc">Paga al recibir en tu casa</div>
+                    </div>
+                    <div class="pay-check-icon"><i class="fas fa-check"></i></div>
+                </div>
+            </div>
+
+            <div class="payment-card-pro" onclick="setPayment('Transferencia', this)">
+                <img src="https://i.ibb.co/qYNh48HS/Chat-GPT-Image-26-feb-2026-11-05-59-p-m.png" class="pay-bg-img">
+                <div class="pay-overlay transfer"></div>
+                <div class="pay-content">
+                    <div>
+                        <div class="pay-title"><i class="fas fa-university"></i> TRANSFERENCIA</div>
+                        <div class="pay-desc">Seguro, rápido y sin efectivo</div>
+                    </div>
+                    <div class="pay-check-icon"><i class="fas fa-check"></i></div>
+                </div>
+            </div>
+
+            <div class="payment-card-pro" onclick="setPayment('Tarjeta', this)">
+                <div class="pay-overlay card"></div>
+                <div class="card-chip"></div>
+                <div class="card-waves"></div>
+                <div class="pay-content" style="height: 100%; align-items: flex-end;">
+                    <div>
+                        <div class="pay-title" style="color:#f8fafc;"><i class="fas fa-credit-card"></i> TARJETA</div>
+                        <div class="pay-desc" style="color:#f87171;">Próximamente...</div>
+                    </div>
+                    <div class="pay-check-icon"><i class="fas fa-check"></i></div>
+                </div>
+            </div>
+            
+        </div>
+
+        <div id="cash-box" style="margin-top:15px;">
+            <input type="number" id="cash-input" class="search-input" style="padding-left:15px;" placeholder="¿Con cuánto pagas?" oninput="calcChange()">
+            <div style="text-align:right; color:#10b981; font-weight:800; margin-top:5px; font-size:0.9rem;">Vuelto: <span id="lbl-change">L 0.00</span></div>
+        </div>
+
+        <div id="transfer-flow-box" style="display:none; margin-top:15px;">
+            <button onclick="navTo('transfer-banks')" style="width:100%; padding:15px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:15px; font-weight:800; color:#3b82f6; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:15px; cursor:pointer;">
+                <i class="fas fa-university"></i> VER CUENTAS BANCARIAS
+            </button>
+            
+            <div id="token-input-area" style="background:white; padding:15px; border-radius:15px; border:1px solid #e2e8f0; box-shadow:0 4px 10px rgba(0,0,0,0.02);">
+                <h4 class="brand-font" style="color:#10b981; margin-bottom:5px;"><i class="fas fa-check-circle"></i> Token de Validación</h4>
+                <p style="font-size:0.75rem; color:#64748b; margin-bottom:10px;">Ingresa el código de confirmación que te dio el agente.</p>
+                <input type="text" id="payment-token" class="search-input" placeholder="Ej: PAGADO-20020" style="text-transform:uppercase; font-weight:800; letter-spacing:1px; border-color:#10b981; color:#064e3b; background:#ecfdf5;">
+            </div>
+        </div>
+        
+        <button class="btn-whatsapp" onclick="sendOrder()" style="margin-top:25px;">
+            <i class="fas fa-utensils" style="font-size:1.4rem;"></i> <span id="txt-final-order">CONFIRMAR EN WHATSAPP</span>
+        </button>
+    </div>
+
+    <div id="view-service-form" class="view">
+        <button onclick="navTo('home')" style="border:none; background:transparent; font-weight:700; color:#6b7280; display:flex; align-items:center; gap:5px; margin-bottom:15px;"><i class="fas fa-arrow-left"></i> Cancelar</button>
+        <h2 class="brand-font" style="margin-bottom:5px; color:#1f2937;" id="form-title">Nuevo Servicio</h2>
+        <p style="color:#6b7280; margin-bottom:25px; font-size:0.9rem;" id="form-desc">Completa los datos.</p>
+        <div class="input-group">
+            <label class="input-label" id="lbl-what">¿Qué enviamos?</label>
+            <textarea id="input-what" class="search-input" rows="2" placeholder="Describe el paquete o encargo..."></textarea>
+        </div>
+        <div class="input-group search-container">
+            <label class="input-label">Zona de Entrega / Destino</label>
+            <input type="text" id="input-sector" class="search-input" placeholder="Buscar colonia..." oninput="filterSectors(this.value, 'service')">
+            <div class="search-results" id="service-results"></div>
+            <div id="service-price" style="margin-top:5px; font-weight:700; color:var(--rapi-orange); text-align:right;"></div>
+        </div>
+        <div class="input-group"><label class="input-label" id="lbl-name">Nombre de quien recibe</label><input type="text" id="input-name" class="search-input" placeholder="Nombre completo"></div>
+        <div class="input-group"><label class="input-label">Teléfono</label><input type="tel" id="input-phone" class="search-input" placeholder="Número celular"></div>
+        <div class="input-group"><label class="input-label">Dirección Exacta</label><textarea id="input-address" class="search-input" rows="2" placeholder="Color de casa, bloque, frente a..."></textarea></div>
+        <button class="btn-whatsapp" onclick="sendServiceOrder()"><span>SOLICITAR SERVICIO</span><i class="fas fa-paper-plane"></i></button>
+    </div>
+
+    <div id="view-support" class="view" style="padding:0; background:#f8f9fa;">
+    
+        <div class="support-header-pro">
+            <button onclick="navTo('profile')" style="border:none; background:transparent; font-size:1.2rem; color:#374151; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
+            <h2 class="brand-font" style="margin-top:15px; font-size:1.8rem; color:#1f2937;">Centro de Ayuda</h2>
+        </div>
+
+        <div style="padding:20px;">
+            <h3 class="brand-font" style="font-size:1.1rem; color:#374151; margin-bottom:15px;">¿En qué podemos ayudarte?</h3>
+            
+            <div class="uber-grid">
+                <div class="uber-card" onclick="openSupportFlow('Pedido Demorado', 'demora')">
+                    <div class="uber-icon-box" style="color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Pedido Demorado</div>
+                </div>
+                
+                <div class="uber-card" onclick="openSupportFlow('Pedido Incompleto', 'normal')">
+                    <div class="uber-icon-box" style="color:#ef4444;"><i class="fas fa-pizza-slice"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Faltan Productos</div>
+                </div>
+
+                <div class="uber-card" onclick="openSupportFlow('Mala Calidad o Estado', 'calidad')">
+                    <div class="uber-icon-box" style="color:#8b5cf6;"><i class="fas fa-temperature-low"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Mala Calidad</div>
+                </div>
+
+                <div class="uber-card" onclick="openSupportFlow('Problema de Vuelto / Cambio', 'normal')">
+                    <div class="uber-icon-box" style="color:#10b981;"><i class="fas fa-money-bill-wave"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Vuelto Incompleto</div>
+                </div>
+
+                <div class="uber-card" onclick="openSupportFlow('Mala Atención del Rider', 'normal')">
+                    <div class="uber-icon-box" style="color:#64748b;"><i class="fas fa-user-shield"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Mala Atención</div>
+                </div>
+
+                <div class="uber-card" onclick="openSupportFlow('Otra Consulta', 'normal')">
+                    <div class="uber-icon-box" style="color:#1e3a8a;"><i class="fas fa-question-circle"></i></div>
+                    <div style="font-weight:800; font-size:0.85rem; color:#1f2937;">Otro Tema</div>
+                </div>
+            </div>
+
+            <h3 class="brand-font" style="font-size:1.1rem; color:#374151; margin-bottom:15px; margin-top:10px;">Preguntas Frecuentes</h3>
+            
+            <div class="faq-box">
+                <div class="faq-item" onclick="toggleFaq(this)">¿Cuánto tarda un pedido? <i class="fas fa-chevron-down" style="color:#d1d5db;"></i></div>
+                <div class="faq-answer">Por lo general, nuestros pedidos toman entre 25 a 45 minutos dependiendo de la demanda del restaurante y el tráfico en El Progreso.</div>
+
+                <div class="faq-item" onclick="toggleFaq(this)">¿Cuáles son los métodos de pago? <i class="fas fa-chevron-down" style="color:#d1d5db;"></i></div>
+                <div class="faq-answer">Actualmente aceptamos efectivo (indícanos con cuánto pagas para llevarte cambio) y transferencias a BAC, Promerica y Ficohsa.</div>
+
+                <div class="faq-item" onclick="toggleFaq(this)">¿Cuáles son los horarios? <i class="fas fa-chevron-down" style="color:#d1d5db;"></i></div>
+                <div class="faq-answer">Laboramos todos los días. Recuerda que algunas zonas de alto riesgo o alejadas tienen horario restringido hasta las 6:59 PM.</div>
+            </div>
+            
+            <div style="height: 100px;"></div>
+        </div>
+    </div>
+
+    <div id="view-rapi-plus" class="view" style="background: #f8f9fa; padding: 0;">
+    
+    <div style="padding: 20px; display: flex; align-items: center; gap: 15px;">
+        <button onclick="navTo('profile')" style="background:white; border:none; width:40px; height:40px; border-radius:50%; box-shadow:0 5px 15px rgba(0,0,0,0.05); color:#374151;"><i class="fas fa-arrow-left"></i></button>
+        <h2 class="brand-font" style="margin:0; color:#1f2937;">Membresía</h2>
+    </div>
+
+    <div id="plus-sales-view" style="padding: 0 20px 100px;">
+        <div style="text-align:center; margin: 20px 0;">
+            <div style="font-size: 4rem; animation: float 3s ease-in-out infinite;">💎</div>
+            <h1 class="brand-font" style="font-size: 2.2rem; color:#1e3a8a;">RAPI <span style="color:#2563eb;">PLUS</span></h1>
+            <p style="color:#6b7280;">La forma inteligente de pedir.</p>
+        </div>
+
+        <div class="benefit-card" style="background:white; box-shadow:0 10px 20px rgba(0,0,0,0.05); border:none;">
+            <div style="background: #ecfdf5; min-width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981;">
+                <i class="fas fa-motorcycle" style="font-size: 1.5rem;"></i>
+            </div>
+            <div>
+                <h4 style="font-weight: 800; color: #374151;">Envíos a Mitad de Precio</h4>
+                <p style="font-size: 0.8rem; color:#9ca3af;">Ahorra en cada mandadito.</p>
+            </div>
+        </div>
+
+        <div class="benefit-card" style="background:white; box-shadow:0 10px 20px rgba(0,0,0,0.05); border:none;">
+            <div style="background: #fffbeb; min-width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+                <i class="fas fa-crown" style="font-size: 1.5rem;"></i>
+            </div>
+            <div>
+                <h4 style="font-weight: 800; color: #374151;">Trato VIP Prioritario</h4>
+                <p style="font-size: 0.8rem; color:#9ca3af;">Tu comida llega más rápido.</p>
+            </div>
+        </div>
+
+        <button onclick="requestRapiPlusWA()" style="width: 100%; padding: 20px; background: #2563eb; color: white; border: none; border-radius: 20px; font-weight: 900; font-size: 1.2rem; margin-top: 25px; box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);">
+            QUIERO SER PLUS - L 110
+        </button>
+        <div style="margin-top: 25px; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 20px; border: 1px dashed #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.02);">
+            <label style="font-size: 0.85rem; font-weight: 800; color: #1e3a8a; margin-bottom: 10px; display: block; text-align: left;"><i class="fas fa-key"></i> Ingresa tu Código de Activación:</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="plus-token-input" placeholder="Ej: ACTIVO-32323" style="flex: 1; padding: 14px 15px; border-radius: 12px; border: 1px solid #cbd5e1; outline: none; font-weight: 800; font-family: monospace; font-size: 1.1rem; text-transform: uppercase; color: #1f2937;">
+                <button onclick="activateRapiPlus()" style="background: #2563eb; color: white; border: none; padding: 0 25px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s;" onactive="this.style.transform='scale(0.95)'"><i class="fas fa-check"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="plus-active-view" style="display: none; padding: 0 20px 100px;">
+        
+        <div class="premium-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:0.8rem; opacity:0.8; letter-spacing:1px;">ESTADO</div>
+                    <div style="font-size:1.5rem; font-weight:900;">ACTIVO <i class="fas fa-check-circle" style="color:#4ade80;"></i></div>
+                </div>
+                <i class="fas fa-gem" style="font-size:3rem; opacity:0.2;"></i>
+            </div>
+
+            <div class="days-counter-box">
+                <div>
+                    <div style="font-size:2rem; font-weight:900;" id="days-left-num">30</div>
+                    <div style="font-size:0.7rem; opacity:0.8;">DÍAS RESTANTES</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.9rem; font-weight:700;">Vence el:</div>
+                    <div style="font-size:0.8rem; opacity:0.9;" id="expiry-date-txt">12 Feb</div>
+                </div>
+            </div>
+
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="days-progress-bar" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <h3 class="brand-font" style="margin-bottom:15px; color:#374151;">Tus Superpoderes ⚡</h3>
+        
+        <div class="perks-grid-pro">
+            
+            <div class="perk-item">
+                <i class="fas fa-motorcycle perk-icon"></i>
+                <div style="font-weight:800; font-size:0.9rem; color:#374151;">Envíos -50%</div>
+                <div style="font-size:0.7rem; color:#9ca3af;">Mitad de precio siempre</div>
+            </div>
+
+            <div class="perk-item">
+                <i class="fas fa-temperature-high perk-icon"></i>
+                <div style="font-weight:800; font-size:0.9rem; color:#374151;">Comida Hot</div>
+                <div style="font-size:0.7rem; color:#9ca3af;">Mochila térmica VIP</div>
+            </div>
+
+            <div class="perk-item">
+                <i class="fas fa-bolt perk-icon"></i>
+                <div style="font-weight:800; font-size:0.9rem; color:#374151;">Prioridad</div>
+                <div style="font-size:0.7rem; color:#9ca3af;">Asignación rápida</div>
+            </div>
+
+            <div class="perk-item">
+                <i class="fas fa-tags perk-icon"></i>
+                <div style="font-weight:800; font-size:0.9rem; color:#374151;">5% Descuento</div>
+                <div style="font-size:0.7rem; color:#9ca3af;">En todos los comercios</div>
+            </div>
+        </div>
+        
+        <button class="btn-renew" onclick="requestRapiPlusWA()">
+            <span>Extender Suscripción</span>
+            <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<div class="nav-bar" id="main-nav">
+    <div class="nav-particles" id="nav-particles"></div>
+    <div class="nav-item active" onclick="navTo('home')"><i class="fas fa-home"></i></div>
+    <div class="nav-item" onclick="navTo('history')"><i class="fas fa-clock-rotate-left"></i></div>
+    <div class="nav-item" onclick="navTo('checkout')"><i class="fas fa-shopping-bag"></i><div id="badge" class="badge">0</div></div>
+    <div class="nav-item" onclick="navTo('profile')"><i class="fas fa-user"></i></div>
+</div>
+
+<div id="mini-cart" class="mini-cart" onclick="navTo('checkout')">
+    <div style="display:flex; align-items:center; position:relative; z-index:2;">
+        <div class="cart-icon-anim">
+            <i class="fas fa-shopping-bag"></i>
+        </div>
+        <div>
+            <div style="font-size:0.7rem; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:1px; font-weight:700;">Total a Pagar</div>
+            <div style="font-weight:900; font-size:1.3rem; letter-spacing:-0.5px;" id="mini-total">L 0.00</div>
+        </div>
+    </div>
+    
+    <div style="display:flex; align-items:center; position:relative; z-index:2;">
+        <span style="font-size:0.9rem; font-weight:800; color:#fbbf24;">Ver Orden <i class="fas fa-arrow-right" style="margin-left:5px;"></i></span>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+    <div class="modal-card">
+        <i class="fas fa-tools" style="font-size:3rem; color:var(--rapi-orange); margin-bottom:15px;" id="modal-icon"></i>
+        <h3 class="brand-font" style="margin-bottom:10px; font-size:1.5rem;" id="modal-title">Trabajando</h3>
+        <p style="color:#6b7280; margin-bottom:20px;" id="modal-msg">Mensaje...</p>
+        <button onclick="closeModal()" style="width:100%; padding:15px; background:var(--rapi-orange); color:white; border:none; border-radius:15px; font-weight:800; font-size:1rem;">ENTENDIDO</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="tip-modal">
+    <div class="modal-card glass-modal">
+        <h3 class="brand-font" style="color:var(--rapi-orange); margin-bottom:5px;">Propina Especial</h3>
+        <p style="color:#6b7280; font-size:0.9rem; margin-bottom:20px;">Apoya a tu Rider (Mínimo L 35)</p>
+        
+        <input type="number" id="input-custom-tip" class="tip-input-pro" placeholder="35" min="35">
+        
+        <button onclick="confirmCustomTip()" style="width:100%; padding:15px; background:var(--rapi-orange); color:white; border:none; border-radius:15px; font-weight:800; font-size:1.1rem; box-shadow:0 10px 20px rgba(255,102,0,0.3);">
+            CONFIRMAR
+        </button>
+        <button onclick="document.getElementById('tip-modal').style.display='none'" style="margin-top:15px; border:none; background:transparent; color:#9ca3af; font-weight:600;">Cancelar</button>
+    </div>
+</div>
+
+<div class="success-overlay" id="success-anim-screen">
+    <i class="fas fa-heart heart-beat"></i>
+    <h2 class="brand-font" style="margin-bottom:15px;" id="success-anim-title">¡Muchas Gracias!</h2>
+    <p style="font-size:1.1rem; opacity:0.9;" id="success-anim-desc">Tu propina significa mucho para nosotros y el equipo de Riders.</p>
+</div>
+
+<div class="success-overlay" id="register-success-screen">
+    <i class="fas fa-check-circle" style="font-size:5rem; margin-bottom:20px;"></i>
+    <h2 class="brand-font" style="margin-bottom:15px;">¡Registro Exitoso!</h2>
+    <p style="font-size:1.1rem; opacity:0.9;">Ya puedes iniciar sesión con tus credenciales.</p>
+    <button onclick="navTo('login'); document.getElementById('register-success-screen').style.display='none'" style="margin-top:30px; padding:15px 30px; background:white; color:var(--rapi-orange); font-weight:800; border:none; border-radius:30px;">IR AL LOGIN</button>
+</div>
+
+<div class="radar-screen" id="radar">
+    <div class="spinner"></div>
+    <h3 class="brand-font" style="margin-top:20px; font-size:1.5rem;">ASIGNANDO DELIVERY...</h3>
+</div>
+
+<div class="modal-overlay" id="support-modal-overlay" onclick="closeSupportFlow(event)">
+    <div class="bottom-sheet" id="support-bottom-sheet" onclick="event.stopPropagation()">
+        <div style="width:40px; height:5px; background:#e5e7eb; border-radius:10px; margin: 0 auto 20px;"></div>
+        
+        <h3 class="brand-font" id="sheet-support-title" style="font-size:1.4rem; color:#1f2937; margin-bottom:15px;">Título</h3>
+        
+        <div id="sheet-support-rules"></div>
+
+        <div class="input-group">
+            <label class="input-label">Cuéntanos más detalles</label>
+            <textarea id="sheet-complaint-text" class="search-input" rows="3" placeholder="Describe brevemente el problema para agilizar el proceso..."></textarea>
+        </div>
+
+        <button class="btn-support-wa" onclick="sendProComplaint()">
+            <div>
+                <div style="font-size:0.8rem; font-weight:400; opacity:0.8;">Hablar con Agente</div>
+                <div style="font-size:1.1rem;">IR A WHATSAPP</div>
+            </div>
+            <div style="width:40px; height:40px; background:white; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#25D366;">
+                <i class="fab fa-whatsapp" style="font-size:1.5rem;"></i>
+            </div>
+        </button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="time-error-screen" style="display:none; z-index:4000;">
+    <div class="time-error-modal" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px;">
+        <div class="time-icon-box">
+            <i class="fas fa-clock time-icon"></i>
+        </div>
+        <h2 class="brand-font" style="color:white; font-size:1.8rem; margin-bottom:10px;">ZONA CERRADA</h2>
+        <p style="color:#e5e7eb; font-size:1rem; margin-bottom:5px;">Esta ubicación tiene horario limitado.</p>
+        <div style="background:#333; padding:10px 20px; border-radius:10px; margin-top:15px; border:1px solid #ef4444;">
+            <span style="color:#ef4444; font-weight:800; font-size:1.2rem;">6:00 AM - 6:59 PM</span>
+        </div>
+        <button onclick="document.getElementById('time-error-screen').style.display='none'" style="margin-top:30px; background:white; color:black; padding:15px 40px; border-radius:30px; font-weight:800; border:none; cursor:pointer; transition: 0.3s;" onactive="this.style.transform='scale(0.95)'">
+            ENTENDIDO
+        </button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="pro-error-modal" style="display:none; z-index:3000;">
+    <div class="modal-card">
+        <div class="error-icon-anim">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h3 class="brand-font" style="margin-bottom:10px; font-size:1.5rem; color:#374151;">¡Oye! 🧐</h3>
+        <p style="color:#6b7280; margin-bottom:20px;" id="pro-error-msg">Te faltan datos.</p>
+        <button onclick="document.getElementById('pro-error-modal').style.display='none'" class="btn-error-close">
+            ENTENDIDO
+        </button>
+    </div>
+</div>
+
+
+<div class="modal-overlay" id="time-error-screen" style="display:none; z-index:4000;">
+    <div class="time-error-modal" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px;">
+        <div class="time-icon-box">
+            <i class="fas fa-clock time-icon"></i>
+        </div>
+        <h2 class="brand-font" style="color:white; font-size:1.8rem; margin-bottom:10px;">ZONA CERRADA</h2>
+        <p style="color:#e5e7eb; font-size:1rem; margin-bottom:5px;">Esta ubicación tiene horario limitado.</p>
+        <div style="background:#333; padding:10px 20px; border-radius:10px; margin-top:15px; border:1px solid #ef4444;">
+            <span style="color:#ef4444; font-weight:800; font-size:1.2rem;">6:00 AM - 6:59 PM</span>
+        </div>
+        <button onclick="document.getElementById('time-error-screen').style.display='none'" style="margin-top:30px; background:white; color:black; padding:15px 40px; border-radius:30px; font-weight:800; border:none; cursor:pointer; transition: 0.3s;" onactive="this.style.transform='scale(0.95)'">
+            ENTENDIDO
+        </button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="pro-error-modal" style="display:none; z-index:3000;">
+    <div class="modal-card">
+        <div class="error-icon-anim">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h3 class="brand-font" style="margin-bottom:10px; font-size:1.5rem; color:#374151;">¡Oye! 🧐</h3>
+        <p style="color:#6b7280; margin-bottom:20px;" id="pro-error-msg">Te faltan datos.</p>
+        <button onclick="document.getElementById('pro-error-modal').style.display='none'" class="btn-error-close">
+            ENTENDIDO
+        </button>
+    </div>
+</div>
+
+<div id="view-suggestions" class="view" style="padding:0; background:#f8fafc; min-height:100vh;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('profile')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Sugerencias</h3>
+            </div>
+            
+            <div class="form-header-card" style="padding-top:20px; border-radius:0 0 25px 25px; box-shadow:0 4px 15px rgba(0,0,0,0.02);">
+                <div class="corp-icon-box"><i class="fas fa-lightbulb"></i></div>
+                <h2 class="brand-font" style="color:#1e293b; font-size:1.4rem;">Buzón de Ideas</h2>
+                <p style="color:#64748b; font-size:0.9rem;">Ayúdanos a mejorar Rapi Delivery</p>
+            </div>
+            
+            <div style="padding: 20px 20px 100px;">
+                <label style="font-weight:700; color:#334155; margin-bottom:12px; display:block; font-size:0.9rem;">Categoría de la sugerencia:</label>
+                
+                <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; margin-bottom:15px;" class="hide-scrollbar">
+                    <div class="sugg-chip active" onclick="selectSuggType(this, 'Nuevo Restaurante')"><i class="fas fa-utensils" style="margin-right:5px;"></i> Restaurante</div>
+                    <div class="sugg-chip" onclick="selectSuggType(this, 'Mejorar App')"><i class="fas fa-mobile-alt" style="margin-right:5px;"></i> Mejorar App</div>
+                    <div class="sugg-chip" onclick="selectSuggType(this, 'Reportar Error')"><i class="fas fa-exclamation-circle" style="margin-right:5px;"></i> Error</div>
+                    <div class="sugg-chip" onclick="selectSuggType(this, 'Otro Tema')"><i class="fas fa-comment-dots" style="margin-right:5px;"></i> Otro</div>
+                </div>
+                <input type="hidden" id="sugg-type-input" value="Nuevo Restaurante">
+
+                <label style="font-weight:700; color:#334155; margin-bottom:12px; display:block; font-size:0.9rem;">Detalles:</label>
+                <textarea id="sugg-text" class="suggestion-textarea" rows="5" placeholder="Describe tu sugerencia aquí..."></textarea>
+                
+                <button class="btn-whatsapp" style="background:#0f172a; box-shadow:0 10px 20px rgba(15, 23, 42, 0.2); margin-top:25px;" onclick="sendSuggestion()">
+                    <span>ENVIAR MENSAJE</span> <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="view-register-business" class="view" style="padding:0; background:#f8fafc; min-height:100vh;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('profile')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Afiliar Negocio</h3>
+            </div>
+            
+            <div class="form-header-card" style="padding-top:20px; border-radius:0 0 25px 25px; box-shadow:0 4px 15px rgba(0,0,0,0.02);">
+                <div class="corp-icon-box"><i class="fas fa-store"></i></div>
+                <h2 class="brand-font" style="color:#1e293b; font-size:1.4rem;">Crece con Nosotros</h2>
+                <p style="color:#64748b; font-size:0.9rem;">Llega a miles de clientes progreseños.</p>
+            </div>
+            
+            <div style="padding: 20px 20px 100px;">
+                <div class="input-group">
+                    <label class="input-label">Nombre Comercial</label>
+                    <input type="text" id="bus-name" class="search-input" placeholder="Ej: Restaurante El Sabor">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Propietario / Gerente</label>
+                    <input type="text" id="bus-owner" class="search-input" placeholder="Nombre completo">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Teléfono Directo</label>
+                    <input type="tel" id="bus-phone" class="search-input" placeholder="0000-0000">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Rubro del Negocio</label>
+                    <input type="text" id="bus-type" class="search-input" placeholder="Comida, Farmacia, Repuestos...">
+                </div>
+                <button class="btn-whatsapp" onclick="sendBusinessRegistration()" style="margin-top:15px; background:var(--rapi-orange);">
+                    <span>SOLICITAR AFILIACIÓN</span> <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="view-work-with-us" class="view" style="padding:0; background:#f8fafc; min-height:100vh;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('profile')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Recursos Humanos</h3>
+            </div>
+            
+            <div class="form-header-card" style="padding-top:20px; border-radius:0 0 25px 25px; box-shadow:0 4px 15px rgba(0,0,0,0.02);">
+                <div class="corp-icon-box blue"><i class="fas fa-motorcycle"></i></div>
+                <h2 class="brand-font" style="color:#1e293b; font-size:1.4rem;">Sé un Rider</h2>
+                <p style="color:#64748b; font-size:0.9rem;">Genera ingresos a tu propio ritmo.</p>
+            </div>
+            
+            <div style="padding: 20px 20px 100px;">
+                <div class="input-group">
+                    <label class="input-label">Nombre Completo</label>
+                    <input type="text" id="job-name" class="search-input" placeholder="Tus nombres y apellidos">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Edad</label>
+                    <input type="number" id="job-age" class="search-input" placeholder="Mayor de 18 años">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Tipo de Vehículo</label>
+                    <select id="job-vehicle" class="search-input" style="width:100%; background:white;">
+                        <option value="Motocicleta">Motocicleta</option>
+                        <option value="Carro">Carro</option>
+                        <option value="Bicicleta">Bicicleta</option>
+                    </select>
+                </div>
+                <button class="btn-whatsapp" style="background:#2563eb; box-shadow:0 10px 20px rgba(37, 99, 235, 0.2); margin-top:15px;" onclick="sendJobApplication()">
+                    <span>APLICAR AHORA</span> <i class="fas fa-file-signature"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="view-donations" class="view" style="padding:0; background:#f9fafb; min-height: 100vh; overflow-y:auto;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('profile')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Responsabilidad Social</h3>
+            </div>
+            
+            <div class="donation-hero-box" style="border-radius: 0; height: 250px;">
+                <img src="https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800" class="donation-hero-img">
+                <div class="donation-hero-overlay" style="padding: 20px;">
+                    <h2 class="brand-font" style="font-size:1.6rem; color:white; margin-bottom:5px;">Hábitat para la Humanidad</h2>
+                    <p style="font-size:0.95rem; color:#f1f5f9; margin:0;">Construyendo hogares en Honduras.</p>
+                </div>
+            </div>
+            
+            <div style="padding: 25px 20px 120px;">
+                <p style="color:#475569; line-height:1.7; font-size:0.95rem; margin-bottom:25px; text-align:justify;">
+                    En <b style="color:var(--rapi-orange);">Rapi Delivery</b> creemos en el poder de la comunidad. Nos unimos a <b>Hábitat para la Humanidad Honduras</b> para ayudar a familias de escasos recursos a construir un hogar seguro.
+                </p>
+                
+                <div style="background:white; padding:20px; border-radius:15px; margin-bottom:30px; border: 1px solid #e2e8f0; border-left: 4px solid #e11d48; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                    <h4 style="color:#1e293b; margin-bottom:8px; font-size:1rem;"><i class="fas fa-heart" style="color:#e11d48;"></i> ¿Cómo donar?</h4>
+                    <p style="color:#64748b; font-size:0.85rem; line-height:1.6; margin:0;">Tu aporte es transparente. Al hacer clic, serás redirigido a la <b>plataforma oficial</b> de pagos de Hábitat Honduras.</p>
+                </div>
+                
+                <a href="https://habitathn.org/producto/donar/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+                    <button class="btn-whatsapp" style="background:#e11d48; box-shadow:0 10px 20px rgba(225, 29, 72, 0.3); width:100%; justify-content:center; padding:18px;">
+                        <span>DONAR AHORA OFICIAL</span> <i class="fas fa-external-link-alt" style="margin-left:10px;"></i>
+                    </button>
+                </a>
+            </div>
+        </div>
+
+        <div id="view-legal" class="view" style="padding:0; background:#f8fafc; min-height: 100vh; overflow-y:auto;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('profile')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Aviso Legal</h3>
+            </div>
+            
+            <div style="padding: 30px 20px 100px;">
+                <div style="text-align:center; margin-bottom:35px;">
+                    <div class="corp-icon-box" style="width:80px; height:80px; font-size:2.5rem;"><i class="fas fa-shield-check"></i></div>
+                    <h2 class="brand-font" style="color:#1e293b; font-size:1.6rem; margin-bottom:5px;">Rapi Delivery HN</h2>
+                    <div style="color:#64748b; font-size:0.85rem; font-weight:700;">100% Hecho en El Progreso</div>
+                </div>
+                
+                <div class="legal-topic">
+                    <h4><i class="fas fa-building" style="color:#334155; font-size:1.1rem;"></i> Nuestra Identidad</h4>
+                    <p>Plataforma tecnológica nacida, desarrollada y operada en El Progreso, Yoro. Nuestro compromiso es impulsar el comercio local y el empleo justo.</p>
+                </div>
+
+                <div class="legal-topic">
+                    <h4><i class="fas fa-box-open" style="color:#334155; font-size:1.1rem;"></i> Calidad y Manejo</h4>
+                    <p>Exigimos el cumplimiento estricto de normas de higiene. Los alimentos viajan en equipo térmico aislado para su protección.</p>
+                </div>
+
+                <div class="legal-topic">
+                    <h4><i class="fas fa-file-contract" style="color:#334155; font-size:1.1rem;"></i> Servicio</h4>
+                    <p>Nos reservamos el derecho de admisión por faltas a las políticas de respeto. Los tiempos mostrados son estimados sujetos a logística y clima.</p>
+                </div>
+
+                <div class="legal-topic">
+                    <h4><i class="fas fa-lock" style="color:#334155; font-size:1.1rem;"></i> Privacidad</h4>
+                    <p>Tu información es confidencial. Utilizamos tecnología en la nube cifrada (Firebase) para proteger tu identidad y datos de pedido.</p>
+                </div>
+
+                <div style="text-align:center; margin-top:30px;">
+                    <div style="color:#94a3b8; font-size:0.8rem; font-weight:600;">
+                        Versión 2.0.0 Pro <br> &copy; 2026 Rapi Delivery HN.<br>Todos los derechos reservados.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<div id="view-address-book" class="view" style="padding:0; background:#f8fafc; min-height: 100vh; overflow-y:auto;">
+            <div class="pro-app-bar">
+                <button onclick="navTo('checkout')" class="btn-back-pro"><i class="fas fa-chevron-left"></i></button>
+                <h3 class="app-bar-title">Mis Direcciones</h3>
+            </div>
+
+            <div style="padding: 20px 20px 100px;">
+                <div id="saved-addresses-list"></div>
+
+                <button id="btn-show-add-form" class="btn-whatsapp" onclick="toggleAddAddressForm(true)" style="background:#0f172a; box-shadow:0 10px 20px rgba(15, 23, 42, 0.2); margin-top:20px;">
+                    <span>+ AGREGAR NUEVA DIRECCIÓN</span> <i class="fas fa-plus"></i>
+                </button>
+
+                <div id="add-address-form-box" style="display:none; background:white; padding:25px 20px; border-radius:25px; margin-top:20px; box-shadow:0 10px 30px rgba(0,0,0,0.05); border:1px solid #e2e8f0; animation:slideUpElastic 0.4s;">
+                    <h4 class="brand-font" style="margin-bottom:20px; color:#1e293b; font-size:1.2rem;"><i class="fas fa-map-pin" style="color:var(--rapi-orange);"></i> Registrar Dirección</h4>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Nombre (Ej: Casa, Trabajo, Novia)</label>
+                        <input type="text" id="new-addr-name" class="search-input" placeholder="Ej: Mi Casa">
+                    </div>
+                    
+                    <div class="input-group search-container">
+                        <label class="input-label">Colonia o Sector</label>
+                        <input type="text" id="new-addr-sector" class="search-input" placeholder="Escribe tu colonia..." oninput="filterSectors(this.value, 'address-book')">
+                        <div class="search-results" id="book-sector-results"></div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Número de Teléfono</label>
+                        <input type="tel" id="new-addr-phone" class="search-input" placeholder="Ej: 9988-7766">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Dirección Detallada (Para el Rider)</label>
+                        <textarea id="new-addr-detail" class="search-input" rows="3" placeholder="Color de casa, muro, frente a..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Ubicación en el mapa</label>
+                        <button type="button" class="btn-gps-maps" id="btn-gps-book" onclick="captureGPS('address-book')">
+                            <i class="fas fa-map-marker-alt maps-icon"></i> <span>Guardar mi ubicación actual</span>
+                        </button>
+                        <input type="hidden" id="new-addr-coords">
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button onclick="toggleAddAddressForm(false)" style="flex:1; padding:15px; background:#f1f5f9; color:#64748b; border:none; border-radius:15px; font-weight:700;">Cancelar</button>
+                        <button onclick="saveNewAddress()" style="flex:2; padding:15px; background:var(--rapi-orange); color:white; border:none; border-radius:15px; font-weight:800; box-shadow:0 4px 15px rgba(255,102,0,0.3);">GUARDAR <i class="fas fa-save"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-all-merchants" class="view" style="padding:0; background:#f8fafc; min-height:100vh;">
+        <div class="pro-app-bar">
+            <button onclick="navTo('home')" class="btn-back-pro"><i class="fas fa-arrow-left"></i></button>
+            <h3 class="app-bar-title">Comercios Aliados</h3>
+        </div>
+        
+        <div style="padding:20px;">
+            <div class="store-filters hide-scrollbar">
+                <div class="store-filter active" onclick="filterAllStores('all', this)"><i class="fas fa-th-large"></i> Todos</div>
+                <div class="store-filter" onclick="filterAllStores('food', this)"><i class="fas fa-hamburger"></i> Comida</div>
+                <div class="store-filter" onclick="filterAllStores('market', this)"><i class="fas fa-shopping-basket"></i> Supermercado</div>
+                <div class="store-filter" onclick="filterAllStores('health', this)"><i class="fas fa-heartbeat"></i> Farmacia</div>
+            </div>
+            
+            <div id="all-merchants-list" class="all-merchants-grid">
+                </div>
+        </div>
+    </div>
+
+        <div id="tour-overlay" style="display:none; position:fixed; inset:0; z-index:10000; pointer-events:none;">
+    <div id="tour-focus" style="position:absolute; box-shadow:0 0 0 9999px rgba(0,0,0,0.75); border-radius:18px; transition:all 0.4s cubic-bezier(0.25, 1, 0.5, 1); pointer-events:none;"></div>
+    
+    <div id="tour-tooltip" style="position:absolute; background:white; padding:20px; border-radius:20px; width:90%; max-width:320px; pointer-events:auto; box-shadow:0 15px 40px rgba(0,0,0,0.4); transition:all 0.4s ease; display:flex; flex-direction:column; gap:8px; opacity:0; transform:translateY(10px);">
+        <h3 class="brand-font" id="tour-title" style="color:var(--rapi-orange); margin:0; font-size:1.2rem;">Título</h3>
+        <p id="tour-desc" style="color:#4b5563; font-size:0.9rem; margin:0; line-height:1.5;">Descripción</p>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+            <button onclick="endTour()" style="background:transparent; border:none; color:#9ca3af; font-weight:700; cursor:pointer;">Omitir Tour</button>
+            <button onclick="nextTourStep()" style="background:var(--rapi-orange); color:white; border:none; padding:12px 25px; border-radius:30px; font-weight:800; cursor:pointer; box-shadow:0 5px 15px rgba(255,102,0,0.3); transition:0.2s;" onactive="this.style.transform='scale(0.95)'">
+                <span id="tour-btn-txt">Siguiente</span> <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="clear-cart-modal" style="display:none; z-index:4000;">
+    <div class="modal-card">
+        <div class="error-icon-anim" style="color:#f59e0b;">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <h3 class="brand-font" style="margin-bottom:10px; font-size:1.3rem; color:#1f2937;">¿Empezar un nuevo pedido?</h3>
+        <p style="color:#6b7280; font-size:0.9rem; margin-bottom:25px;" id="clear-cart-msg">
+            Ya tienes productos de <b>Restaurante A</b>. ¿Deseas vaciar tu carrito para pedir de <b>Restaurante B</b>?
+        </p>
+        <div style="display:flex; gap:10px;">
+            <button onclick="document.getElementById('clear-cart-modal').style.display='none'" style="flex:1; padding:15px; background:#f1f5f9; color:#64748b; border:none; border-radius:15px; font-weight:700;">Cancelar</button>
+            <button onclick="confirmClearCart()" style="flex:1; padding:15px; background:var(--rapi-orange); color:white; border:none; border-radius:15px; font-weight:800; box-shadow:0 4px 15px rgba(255,102,0,0.3);">Vaciar y Añadir</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="exit-checkout-modal" style="display:none; z-index:4000;">
+    <div class="modal-card">
+        <div class="error-icon-anim" style="color:#3b82f6;">
+            <i class="fas fa-shopping-basket"></i>
+        </div>
+        <h3 class="brand-font" style="margin-bottom:10px; font-size:1.4rem; color:#1f2937;">¿Deseas salir?</h3>
+        <p style="color:#6b7280; font-size:0.95rem; margin-bottom:25px;">
+            No te preocupes, <b>tu carrito estará esperando por ti</b>. Puedes volver y terminar tu orden cuando quieras.
+        </p>
+        <div style="display:flex; gap:10px;">
+            <button onclick="document.getElementById('exit-checkout-modal').style.display='none'" style="flex:1; padding:15px; background:#f1f5f9; color:#64748b; border:none; border-radius:15px; font-weight:700;">Quedarme</button>
+            <button onclick="confirmExitCheckout()" style="flex:1; padding:15px; background:#3b82f6; color:white; border:none; border-radius:15px; font-weight:800; box-shadow:0 4px 15px rgba(59,130,246,0.3);">Sí, Salir</button>
+        </div>
+    </div>
+</div>
+
+<div class="payment-radar-overlay" id="payment-radar-screen">
+    <div class="payment-radar-circle">
+        <i class="fas fa-shield-check"></i>
+    </div>
+    <h2 class="brand-font" style="font-size:1.8rem; margin-top:30px; color:white;">Canal Seguro</h2>
+    <p style="color:#cbd5e1; font-size:1rem; margin-top:15px; max-width: 320px; line-height:1.6;">
+        Conectando con agente para el pago en <b id="radar-bank-name" style="color:var(--rapi-orange);">Banco</b>...
+        <br><br>
+        <span style="font-size:0.85rem; color:#94a3b8;">Al confirmar la transferencia, el agente te brindará un <b>Token de Pago</b> para procesar tu orden.</span>
+    </p>
+    <div class="loading-dots-pro" style="margin-top:30px;"><span></span><span></span><span></span></div>
+</div>
+
+<div id="view-transfer-banks" class="view" style="padding:0; background:#f8fafc; min-height:100vh;">
+        <div class="pro-app-bar" style="margin: 0; background: white; border-bottom: 1px solid #f1f5f9;">
+            <button onclick="navTo('checkout')" class="btn-back-pro"><i class="fas fa-arrow-left"></i></button>
+            <h3 class="app-bar-title">Transferencias</h3>
+        </div>
+        
+        <div style="padding: 20px;">
+            <h4 class="brand-font" style="color:#1f2937; margin-bottom:5px;">1. Selecciona tu Banco</h4>
+            <p style="font-size:0.8rem; color:#64748b; margin-bottom:15px;">Solicita la cuenta oficial a nuestro agente de turno.</p>
+            
+            <div class="bank-grid-pro" id="bank-box">
+                <div class="bank-pro-btn occidente" onclick="selectBank('Banco de Occidente', this)"><i class="fas fa-piggy-bank"></i> Occidente</div>
+                <div class="bank-pro-btn banpais" onclick="selectBank('Banpaís', this)"><i class="fas fa-building"></i> Banpaís</div>
+                <div class="bank-pro-btn ficohsa" onclick="selectBank('Ficohsa', this)"><i class="fas fa-landmark"></i> Ficohsa</div>
+                <div class="bank-pro-btn bac" onclick="selectBank('BAC Credomatic', this)"><i class="fas fa-credit-card"></i> BAC</div>
+                <div class="bank-pro-btn kash" onclick="selectBank('App Kash', this)" style="grid-column: 1 / -1;"><i class="fas fa-mobile-alt"></i> Kash</div>
+            </div>
+
+            <button class="btn-whatsapp" onclick="requestPaymentData()" style="margin-top:20px; background:#0f172a; box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);">
+                <i class="fab fa-whatsapp" style="color:#25D366;"></i> SOLICITAR DATOS 
+            </button>
+            
+            <div style="margin-top:30px; background:#fff7ed; padding:15px; border-radius:15px; border-left:4px solid var(--rapi-orange);">
+                <h4 style="color:#92400e; font-size:0.9rem; margin-bottom:5px;"><i class="fas fa-info-circle"></i> ¿Qué sigue?</h4>
+                <p style="font-size:0.8rem; color:#92400e;">Al confirmar tu transferencia en WhatsApp, el agente te dará un <b>Token (Ej: PAGADO-20020)</b>. La aplicación te regresará al Checkout para que lo ingreses y proceses tu orden.</p>
+            </div>
+        </div>
+    </div>
+
+<script src="/static/logicajs/logica y funciones.js?v=13.0"></script>
+<script src="/static/logicajs/comercios.js?v=13.0"></script>
+
+
+</body>
+</html>
