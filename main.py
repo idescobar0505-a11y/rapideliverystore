@@ -1,4 +1,3 @@
-import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,13 +7,13 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 import database
 
-# 1. Crear las tablas en la Base de Datos PostgreSQL (Usa tu V3 de database.py)
-database.crear_db()
+# 1. TU CÓDIGO ORIGINAL: Crea las tablas en la base de datos si aún no existen
+database.Base.metadata.create_all(bind=database.engine)
 
-# 2. Iniciar la App (Este será el Cerebro Maestro)
-app = FastAPI(title="Rapi Delivery API Master - V3")
+# Iniciar la aplicación de FastAPI
+app = FastAPI(title="Rapi Delivery API Master")
 
-# Habilitar conexiones desde cualquier app (Para que el Rider pueda conectarse aquí)
+# Habilitar conexiones (ESTO ES LO ÚNICO NUEVO ARRIBA PARA QUE EL RIDER PUEDA ENTRAR)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -49,17 +48,15 @@ class RechazoRequest(BaseModel):
 class EstadoUpdate(BaseModel):
     status: str
 
-# ================= 1. RUTAS PARA PINTAR LA APP DEL CLIENTE =================
-# Montamos la carpeta "static" tal como la tienes estructurada en tu proyecto cliente
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+# ================= 1. TU CÓDIGO ORIGINAL QUE FUNCIONA PERFECTO =================
+# IMPORTANTE: Aquí le decimos a Python dónde están tus CSS y JS.
+# Montamos la carpeta "static" para que el HTML pueda leer los estilos.
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Ruta principal: Cuando alguien entre a tu link, se pinta el index.html
 @app.get("/")
-async def serve_index():
-    index_path = os.path.join(os.getcwd(), "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"error": "No se encontró el archivo index.html en la raíz"}
+async def read_root():
+    return FileResponse("index.html")
 
 # ================= 2. API PARA RECIBIR ÓRDENES DEL CLIENTE =================
 @app.post("/api/pedidos")
@@ -74,7 +71,7 @@ def crear_pedido(pedido: PedidoNuevo, db: Session = Depends(get_db)):
         referencia=pedido.referencia,
         lat=pedido.lat,
         lon=pedido.lon,
-        status="pendiente" # Se marca pendiente para el radar de los Riders
+        status="pendiente" 
     )
     db.add(nuevo_pedido)
     db.commit()
